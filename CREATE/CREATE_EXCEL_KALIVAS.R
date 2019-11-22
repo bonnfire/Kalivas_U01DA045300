@@ -58,16 +58,17 @@ cohort02_group1_OF1_test[[2]] <- cohort02_group1_OF1$C2Group1OF1_C2G1OF1 %>%
   mutate(date = as.Date(date, format='%d-%b-%Y') ,
          time = chron::chron(times = time)) 
   
-# naniar::vis_miss(cohort02_group1_OF1_test[[2]]) # rather than visualizing the graph every time, return a comment if the percentages diff
-ifelse(naniar::pct_miss(cohort02_group1_OF1_test[[2]]$totdist), "", "")
-naniar::pct_miss(cohort02_group1_OF1_test[[2]]$totdist)
+naniar::vis_miss(cohort02_group1_OF1_test[[2]]) # rather than visualizing the graph every time, # consider coding this ifelse in the future: return a comment if the percentages diff
+
 cohort02_group1_OF1_test[[2]] <- cohort02_group1_OF1$C2Group1OF1_C2G1OF1 %>% 
   select(-matches("\\d$")) %>%  # matches is the only select helper that allows for regular expressions
   dplyr::filter(complete.cases(.)) %>% 
   select(subject_id, everything()) %>%  # reorder the columns 
   mutate(date = as.Date(date, format='%d-%b-%Y') ,
          time = chron::chron(times = time))
-# todo: change the date object. check the number of unique id matches expected values.
+
+nrow(cohort02_group1_OF1_test[[2]]) == n_distinct(cohort02_group1_OF1_test[[2]]$subject_id)
+# check the number of unique id matches expected values.
 
 
 
