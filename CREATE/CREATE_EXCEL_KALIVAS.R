@@ -39,8 +39,9 @@ ls()[sapply(ls(), function(i) class(get(i))) == "list"] # use this vector of the
 
 cohort2 <- list() #all that contain cohort2)
 
-  
-cohort02_group1_OF1_test <- list()
+
+# test for one case, eventually use this to create the cohort objects above 
+
 # change the variable names # extract the data and create the summary as a separate list item
 names(cohort02_group1_OF1$C2Group1OF1_C2G1OF1) <- ifelse(grepl("^[[:alpha:]].*\\d$", names(cohort02_group1_OF1$C2Group1OF1_C2G1OF1)), gsub("[.].*", "", names(cohort02_group1_OF1$C2Group1OF1_C2G1OF1)), names(cohort02_group1_OF1$C2Group1OF1_C2G1OF1)) 
 
@@ -48,17 +49,24 @@ names(cohort02_group1_OF1$C2Group1OF1_C2G1OF1) <- mgsub::mgsub(names(cohort02_gr
   tolower() %>% 
   make.unique(sep = ".")
   
-
+cohort02_group1_OF1_test <- list()
 cohort02_group1_OF1_test[[1]] <- cohort02_group1_OF1$C2Group1OF1_C2G1OF1 %>% 
                            select(ends_with(".1")) %>% # creates the "total" table
-                            dplyr::filter(complete.cases(.))
+                            dplyr::filter(complete.cases(.)) 
 cohort02_group1_OF1_test[[2]] <- cohort02_group1_OF1$C2Group1OF1_C2G1OF1 %>% 
-  select(-matches("\\d$"))
-naniar::vis_miss(cohort02_group1_OF1_test[[2]])
+  select(-matches("\\d$")) %>% 
+  mutate(date = as.Date(date, format='%d-%b-%Y') ,
+         time = chron::chron(times = time)) 
+  
+# naniar::vis_miss(cohort02_group1_OF1_test[[2]]) # rather than visualizing the graph every time, return a comment if the percentages diff
+ifelse(naniar::pct_miss(cohort02_group1_OF1_test[[2]]$totdist), "", "")
+naniar::pct_miss(cohort02_group1_OF1_test[[2]]$totdist)
 cohort02_group1_OF1_test[[2]] <- cohort02_group1_OF1$C2Group1OF1_C2G1OF1 %>% 
   select(-matches("\\d$")) %>%  # matches is the only select helper that allows for regular expressions
   dplyr::filter(complete.cases(.)) %>% 
-  select(subject_id, everything()) # reorder the columns 
+  select(subject_id, everything()) %>%  # reorder the columns 
+  mutate(date = as.Date(date, format='%d-%b-%Y') ,
+         time = chron::chron(times = time))
 # todo: change the date object. check the number of unique id matches expected values.
 
 
