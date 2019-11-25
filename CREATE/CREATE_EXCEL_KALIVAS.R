@@ -29,18 +29,40 @@ openfieldtask_files_excel <- grep("cohort", openfieldtask_files_excel, ignore.ca
 
 ls()[sapply(ls(), function(i) class(get(i))) == "list"] # use this vector of these objects to make them into df's to be bound together in to a data frame cohort 2
 
-openfieldtask_excel_df <- list()
 
 # create df with all excel values
-for(i in 1:length(openfieldtask_files_excel)){
-  openfieldtask_excel_df <- lapply(sapply(strsplit(openfieldtask_files_excel, "/"), "[", 3), u01.importxlsx)
-
-}
-
-sapply(strsplit(openfieldtask_files_excel, "/"), "[", 3)
+# not needed sapply(strsplit(openfieldtask_files_excel, "/"), "[", 3)
+openfieldtask_excel_df <- list()
 openfieldtask_excel_list <- lapply(openfieldtask_files_excel, read_excel)
 # since sapply(openfieldtask_excel_df, length) is all 1's, we won't need to use the u01.importxlsx function; sapply(openfieldtask_excel_list, dim)[2,] %>% summary shows that all dataframes have 46 vars
-names(openfieldtask_excel_list) <- gsub("\\.xlsx", "", openfieldtask_files_excel)
+names(openfieldtask_excel_list) <- str_match(openfieldtask_files_excel, "/.*/(.*?)\\.")[,2] ## XX what's up with this case "cohort03_subject_104_and_108_to_110)_OF2"
+
+# naniar::vis_miss(rbindlist(openfieldtask_excel_list, fill = T)) there is some missingness that we should probably address but we can leave that for another time
+openfieldtask_excel_list_test <- lapply(openfieldtask_excel_list, function(x){
+  names(x) <-ifelse(grepl("^[[:alpha:]].*\\d$", names(x)), gsub("[.].*", "", names(x)), names(x)) # remove trailing dots and variable numbers
+  names(x) <- mgsub::mgsub(names(x),c("-| "), c("_")) %>% 
+    tolower() %>% 
+    make.unique(sep = ".")
+  return(x)
+})
+
+# create the total tables extracted from the excel files
+openfieldtask_excel_list_total <- lapply(openfieldtask_excel_list_test, function(x){
+ x <- x %>% 
+    select(ends_with(".1")) %>% 
+    dplyr::filter(complete.cases(.))
+ return(x)
+})
+
+openfieldtask_excel_list_excel <- lapply(openfieldtask_excel_list_test, function(x){
+  x <- x %>% 
+    select(-matches("\\d$")) %>% 
+    dplyr::filter(grepl("^\\d", x$cage))
+  return(x)
+})
+
+rbindlist(openfieldtask_excel_list_excel)[which(is.na(rbindlist(openfieldtask_excel_list_excel)$subject_id)),] ## found missing labanimalid - easy fix though, just need confirmation that i can
+
 
 # test for one case, eventually use this to create the cohort objects above 
 # change the variable names # extract the data and create the summary as a separate list item
