@@ -43,7 +43,7 @@ openfieldtask_excel_list_test <- lapply(openfieldtask_excel_list, function(x){
   names(x) <- mgsub::mgsub(names(x),c("-| "), c("_")) %>% 
     tolower() %>% 
     make.unique(sep = ".")
-  x %<>% mutate(date = as.Date(date, format='%d-%b-%Y') ,
+  x %<>% mutate(date = as.POSIXct(strptime(date,format="%d-%b-%Y")),
          time = chron::chron(times = time))
   return(x)
 })
@@ -62,7 +62,10 @@ openfieldtask_excel_df_data <- lapply(openfieldtask_excel_list_test, function(x)
     dplyr::filter(grepl("^\\d", x$cage))
   return(x)
 }) %>% rbindlist(fill = T, idcol = "cohort") %>% 
-  mutate(cohort = gsub("_.*", "", cohort))
+  mutate(cohort = gsub("_.*", "", cohort),
+         cage = as.numeric(cage),
+         tempdegc = as.logical(tempdegc),
+         wheelrot = as.logical(wheelrot))
 
 openfieldtask_excel_df_data[which(is.na(openfieldtask_excel_df_data$subject_id)),] ## XX found missing labanimalid - easy fix though, just need confirmation that i can
 
