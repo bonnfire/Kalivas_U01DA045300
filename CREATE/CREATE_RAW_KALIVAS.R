@@ -43,7 +43,7 @@ openfieldtask_files_raw <- list.files(path = ".", pattern = "*.ACT", full.names 
 
 read_oft <- function(x){
   read_oft <- fread(x, fill = T)
-  read_oft$filename <- x
+  read_oft$actfilename <- x
   return(read_oft)
 }
 
@@ -55,15 +55,18 @@ openfieldtask_raw_list <- lapply(openfieldtask_raw_list, function(df){
     select(-V38) %>%   
     mutate(vmx = head(grep("^\\D", df$CAGE,value = T), 1)) %>% 
     dplyr::filter(grepl("(?=)^\\d", df$CAGE, perl = T)) %>% 
-    mutate(CAGE = as.numeric(CAGE)) %>%
+    mutate(CAGE = as.numeric(CAGE),
+           DATE = as.POSIXct(strptime(DATE,format="%d-%B-%Y")),
+           TIME = chron::chron(times=TIME),
+           cohort = str_match(actfilename, "/(.*?)/")[,2]) %>%
     arrange(CAGE)
   return(df)
   }) %>% uniform.var.names.testingu01()
 # naniar::vis_miss(rbindlist(openfieldtask_raw_list, fill = T)) nothing abnormal; remove V38 bc all are empty; check why some columns are 100% empty and if the kalivas lab kept these # all na cycle lines contain the C:\\ extension
-openfieldtask_raw_df <- rbindlist(openfieldtask_raw_list, fill = T)
+openfieldtask_raw_df <- rbindlist(openfieldtask_raw_list, fill = T) # vis_miss only those two columns are empty now 
 
 
-# todo: finish completing the extraction and date/time formatting, check that the names are the same as the excel file
+# todo: check that the names are the same as the excel file
 
 ############################
 # Exp 3: TAIL FLICK
