@@ -52,14 +52,14 @@ names(openfieldtask_raw_list) = openfieldtask_files_raw
 
 openfieldtask_raw_list <- lapply(openfieldtask_raw_list, function(df){
   df <- df %>% 
-    select(-V38) %>%     
-    mutate(vmx = ifelse(grepl("^\\d", df$CAGE), NA, df$CAGE)) %>% 
-    dplyr::filter(grepl("^\\d", CAGE)) %>% 
-    mutate(CAGE = as.numeric(CAGE)) %>%  
+    select(-V38) %>%   
+    mutate(vmx = head(grep("^\\D", df$CAGE,value = T), 1)) %>% 
+    dplyr::filter(grepl("(?=)^\\d", df$CAGE, perl = T)) %>% 
+    mutate(CAGE = as.numeric(CAGE)) %>%
     arrange(CAGE)
   return(df)
   }) %>% uniform.var.names.testingu01()
-# naniar::vis_miss(rbindlist(openfieldtask_raw_list, fill = T)) nothing abnormal; remove V38 bc all are empty; check why some columns are 100% empty and if the kalivas lab kept these
+# naniar::vis_miss(rbindlist(openfieldtask_raw_list, fill = T)) nothing abnormal; remove V38 bc all are empty; check why some columns are 100% empty and if the kalivas lab kept these # all na cycle lines contain the C:\\ extension
 openfieldtask_raw_df <- rbindlist(openfieldtask_raw_list, fill = T)
 
 
