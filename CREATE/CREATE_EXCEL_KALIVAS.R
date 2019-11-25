@@ -43,25 +43,32 @@ openfieldtask_excel_list_test <- lapply(openfieldtask_excel_list, function(x){
   names(x) <- mgsub::mgsub(names(x),c("-| "), c("_")) %>% 
     tolower() %>% 
     make.unique(sep = ".")
+  x %<>% mutate(date = as.Date(date, format='%d-%b-%Y') ,
+         time = chron::chron(times = time))
   return(x)
 })
 
 # create the total tables extracted from the excel files
-openfieldtask_excel_list_total <- lapply(openfieldtask_excel_list_test, function(x){
+openfieldtask_excel_df_total <- lapply(openfieldtask_excel_list_test, function(x){
  x <- x %>% 
     select(ends_with(".1")) %>% 
     dplyr::filter(complete.cases(.))
  return(x)
-})
+}) %>% rbindlist(fill = T)
 
-openfieldtask_excel_list_excel <- lapply(openfieldtask_excel_list_test, function(x){
+openfieldtask_excel_df_data <- lapply(openfieldtask_excel_list_test, function(x){
   x <- x %>% 
     select(-matches("\\d$")) %>% 
     dplyr::filter(grepl("^\\d", x$cage))
   return(x)
-})
+}) %>% rbindlist(fill = T, idcol = "cohort") %>% 
+  mutate(cohort = gsub("_.*", "", cohort))
 
-rbindlist(openfieldtask_excel_list_excel)[which(is.na(rbindlist(openfieldtask_excel_list_excel)$subject_id)),] ## found missing labanimalid - easy fix though, just need confirmation that i can
+openfieldtask_excel_df_data[which(is.na(openfieldtask_excel_df_data$subject_id)),] ## XX found missing labanimalid - easy fix though, just need confirmation that i can
+
+
+
+
 
 
 # test for one case, eventually use this to create the cohort objects above 

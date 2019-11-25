@@ -60,8 +60,11 @@ openfieldtask_raw_list <- lapply(openfieldtask_raw_list, function(df){
            TIME = chron::chron(times=TIME),
            cohort = str_match(actfilename, "/(.*?)/")[,2]) %>%
     arrange(CAGE)
+  names(df) <- mgsub::mgsub(names(df),c("-| "), c("_")) %>% 
+    tolower() %>% 
+    make.unique(sep = ".")
   return(df)
-  }) %>% uniform.var.names.testingu01()
+  })
 # naniar::vis_miss(rbindlist(openfieldtask_raw_list, fill = T)) nothing abnormal; remove V38 bc all are empty; check why some columns are 100% empty and if the kalivas lab kept these # all na cycle lines contain the C:\\ extension
 openfieldtask_raw_df <- rbindlist(openfieldtask_raw_list, fill = T) # vis_miss only those two columns are empty now 
 
