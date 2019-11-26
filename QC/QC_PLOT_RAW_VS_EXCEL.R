@@ -49,7 +49,8 @@ kalivas_oft_noraw <- kalivas_oft_graph_merge %>%
   select(filename_excel, subject_id, sample, cage, date, time, actfilename) 
 
 ## send to kalivas lab
-writexl::write_xlsx(kalivas_oft_noraw, "oft_noraw.xlsx")
+writexl::write_xlsx(kalivas_oft_noraw, "oft_noraw.xlsx") ## clarified on 11/26-- will wait for readme and excel files (before thxgi, xmas) # to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. Find information in This information is clarified in the README files and the comments section in the Excel book."
+
 
 
 ## compare the total values by grouping by actfile and by cage
@@ -68,5 +69,5 @@ openfieldtask_raw_df_total
 kalivas_oft_total_compare <- left_join(openfieldtask_raw_df_total, openfieldtask_excel_df_total_forcompare, by = c("actfilename", "cage"))
 kalivas_oft_total_compare %>% 
   dplyr::filter(is.na(totdist.excel))
-names(kalivas_oft_total_compare) <- mgsub::mgsub(names(kalivas_oft_total_compare),c("\\.x", "\\.y"), c("\\.raw", "\\.excel"))
+names(kalivas_oft_total_compare) <- mgsub::mgsub(names(kalivas_oft_total_compare), c("\\.x", "\\.y"), c("\\.raw", "\\.excel"))
 

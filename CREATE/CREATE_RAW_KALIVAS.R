@@ -59,8 +59,9 @@ openfieldtask_raw_list <- lapply(openfieldtask_raw_list, function(df){
            DATE = as.POSIXct(strptime(DATE,format="%d-%B-%Y")),
            TIME = chron::chron(times=TIME),
            cohort = str_match(actfilename, "/(.*?)/")[,2]) %>%
-    arrange(CAGE)
-  names(df) <- mgsub::mgsub(names(df),c("-| "), c("_")) %>% 
+    arrange(CAGE) %>% 
+    select(-vmx) # Analyse's email (11/26/19) -- restrictive software for naming the file, so they change the filename immediately after the exp is run; no set protocol for how the files are named upfront bc they change them so quickly to be "more useful and descriptive"; " therefore, I would not be too concerned about the VMX filenames in general" 
+  names(df) <- mgsub::mgsub(names(df),c("-| "), c("_")) %>%  
     tolower() %>% 
     make.unique(sep = ".")
   return(df)
@@ -68,8 +69,9 @@ openfieldtask_raw_list <- lapply(openfieldtask_raw_list, function(df){
 # naniar::vis_miss(rbindlist(openfieldtask_raw_list, fill = T)) nothing abnormal; remove V38 bc all are empty; check why some columns are 100% empty and if the kalivas lab kept these # all na cycle lines contain the C:\\ extension
 openfieldtask_raw_df <- rbindlist(openfieldtask_raw_list, fill = T) # vis_miss only those two columns are empty now 
 
+# to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. Find information in This information is clarified in the README files and the comments section in the Excel book."
+# note: the raw "total" summary stats are created in QC_PLOT_RAW_VS_EXCEL.R
 
-# todo: check that the names are the same as the excel file
 
 ############################
 # Exp 3: TAIL FLICK
