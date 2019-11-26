@@ -65,6 +65,8 @@ openfieldtask_excel_df_total_forcompare
 openfieldtask_raw_df_total
 
 # openfieldtask_raw_df_total has 188 observations vs 181 from excel
-kalivas_oft_total_compare <- left_join(openfieldtask_raw_df_total, openfieldtask_excel_df_total_forcompare, by = "actfilename")
+kalivas_oft_total_compare <- left_join(openfieldtask_raw_df_total, openfieldtask_excel_df_total_forcompare, by = c("actfilename", "cage"))
 kalivas_oft_total_compare %>% 
-  dplyr::filter(is.na(cage.y))
+  dplyr::filter(is.na(totdist.excel))
+names(kalivas_oft_total_compare) <- mgsub::mgsub(names(kalivas_oft_total_compare),c("\\.x", "\\.y"), c("\\.raw", "\\.excel"))
+
