@@ -24,12 +24,6 @@ kalivas_oft_measures <- grep("[^subject_id]", kalivas_oft_measures, value = T, p
 kalivas_oft_measures <- setdiff(kalivas_oft_measures, "cohort_raw") ## Use `match` to find the point at which to insert "cohort_raw" ## Use `append` to insert "cohort_raw" at the relevant point
 kalivas_oft_measures <- append(kalivas_oft_measures, values = "cohort_raw", after = match("pri_samples_excel", kalivas_oft_measures))
 
-
-onlymins <-  grep(pattern = "^(min)", names(rawfiles_locomotor_wide_graph), perl = T, value = T)[-31]
-onlymins_excel <- paste0(onlymins, "_excel")
-onlymins_raw <- paste0(onlymins, "_raw")
-
-
 # create plots 
 
 pdf("kalivas_opentailflick.pdf", onefile = T)
@@ -45,3 +39,14 @@ for (i in 1:(length(kalivas_oft_measures)/2)){
 
 dev.off()
 
+#### find the discrepancies 
+# the raw data cannot be found for the excel files
+naniar::vis_miss(kalivas_oft_graph_merge)
+kalivas_oft_noraw <- kalivas_oft_graph_merge %>% 
+  dplyr::filter(is.na(cohort_raw)) %>% 
+  mutate(date = as.character(date),
+         time = as.character(time)) %>% 
+  select(filename_excel, subject_id, sample, cage, date, time, actfilename) 
+
+## send to kalivas lab
+writexl::write_xlsx(kalivas_oft_noraw, "oft_noraw.xlsx")
