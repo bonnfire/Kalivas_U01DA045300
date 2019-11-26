@@ -50,3 +50,21 @@ kalivas_oft_noraw <- kalivas_oft_graph_merge %>%
 
 ## send to kalivas lab
 writexl::write_xlsx(kalivas_oft_noraw, "oft_noraw.xlsx")
+
+
+## compare the total values by grouping by actfile and by cage
+openfieldtask_excel_df_total_forcompare <- openfieldtask_excel_df_total %>% 
+  rename("actfilename" = "actfile")
+names(openfieldtask_excel_df_total_forcompare) <- gsub("\\.\\d", "", names(openfieldtask_excel_df_total_forcompare))
+openfieldtask_raw_df_total <- openfieldtask_raw_df %>% group_by(actfilename, cage, date, time) %>%
+  summarise_at(c("totdist", "movtime", "strno", "ctrtime","rmovno"), sum) %>% 
+  ungroup() %>% 
+  select(-c(date, time)) %>% 
+  mutate(actfilename = str_match(actfilename, "/.*/(.*?)_raw*.")[,2])
+openfieldtask_excel_df_total_forcompare
+openfieldtask_raw_df_total
+
+# openfieldtask_raw_df_total has 188 observations vs 181 from excel
+kalivas_oft_total_compare <- left_join(openfieldtask_raw_df_total, openfieldtask_excel_df_total_forcompare, by = "actfilename")
+kalivas_oft_total_compare %>% 
+  dplyr::filter(is.na(cage.y))

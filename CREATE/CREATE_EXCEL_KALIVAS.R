@@ -54,7 +54,7 @@ openfieldtask_excel_df_total <- lapply(openfieldtask_excel_list_test, function(x
     select(ends_with(".1")) %>% 
     dplyr::filter(complete.cases(.))
  return(x)
-}) %>% rbindlist(fill = T)
+}) %>% rbindlist(fill = T, idcol = "actfile")
 
 openfieldtask_excel_df_data <- lapply(openfieldtask_excel_list_test, function(x){
   x <- x %>% 
