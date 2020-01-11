@@ -2,7 +2,20 @@
 # Protocol 
 #############################
 
-setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks")
+# setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks") #old code
+
+# import all and then separate by tab
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
+u01.importxlsx <- function(xlname){
+  path_sheetnames <- excel_sheets(xlname)
+  df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname)
+  names(df) <- path_sheetnames
+  return(df)
+} 
+all_excel_fnames <- list.files(full.names = T, recursive = T)
+kalivas_cohort2_excel <- u01.importxlsx(all_excel_fnames[1])
+kalivas_cohort3_excel <- u01.importxlsx(all_excel_fnames[2])
+
 
 ############################
 # Exp 1: ELEVATED PLUS MAZE
@@ -111,3 +124,8 @@ nrow(cohort02_group1_OF1_test[[2]]) == n_distinct(cohort02_group1_OF1_test[[2]]$
 ############################
 
 
+############################
+# Exp 4: LONG ACCESS
+############################
+longaccess_cohort2 <- kalivas_cohort2_excel[[6]] #27 rfid
+longaccess_cohort3 <- kalivas_cohort3_excel[[6]] #33 rfid

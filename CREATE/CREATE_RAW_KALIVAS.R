@@ -1,6 +1,102 @@
 #############################
 # Protocol 
 #############################
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
+allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #295 files
+
+## in addiction tasks 
+
+allcohorts_longaccess_fnames <- grep("long", allcohorts_allexp_filenames, ignore.case = T, value = T)
+# Extract subject information
+readsubject <- function(x){
+  subject <- fread(paste0("grep -i 'subject' ", "'", x, "'", " | grep -Po ': \\K(w|KAL)?[0-9]*'"), header = F)
+  subject$filename <- x
+  return(subject)
+} 
+lga_subjects <- lapply(allcohorts_longaccess_fnames, readsubject) %>% 
+  rbindlist(fill = T) %>% 
+  rename("subjectid"= "V1") %>% 
+  group_by(filename) %>% 
+  mutate(numseq = row_number()) %>% 
+  ungroup() 
+
+lga_subjects %>% dplyr::filter(is.na(subjectid)) 
+  
+
+# B array contains the inactive lever, active lever, and infusion information
+readBarray <- function(x){
+  Barray <- fread(paste0("grep -a1 --no-group-separator -n 'B:' ", "'", x, "'", " | grep -E ' 0:'"), header = F, fill = T)
+  Barray$filename <- x
+  return(Barray)
+} 
+##  " | grep -v '20:' | grep -v 'B:'" could have also worked but it includes 5: from the A array above it
+
+
+lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fill = T) %>% 
+  dplyr::select(-c(V2, V6)) %>% 
+  dplyr::rename("rownum" = "V1",
+         "inactive_lever" = "V3",
+         "active_lever" = "V4", 
+         "infusions" = "V5") %>% 
+  mutate(rownum = gsub("-", "", rownum) %>% as.numeric) %>% 
+  arrange(filename, rownum) %>% 
+  group_by(filename) %>% 
+  mutate(numseq = row_number()) %>% 
+  ungroup() 
+
+dim(lga_Barray)
+dim(lga_subjects)
+# the dim's don't match -- figure out why
+lga_Barray %>% 
+  group_by(filename) %>% 
+  add_count(filename) %>% 
+  merge(., lga_subjects %>% 
+          count(filename), by = "filename") %>%   
+  rename("numberofBarrays" = "n.x", "numberofsubjects" = "n.y") %>% 
+  select(numberofBarrays, numberofsubjects, filename) %>% 
+  group_by(filename) %>% 
+  slice(1) %>% 
+  dplyr::filter(numberofBarrays != numberofsubjects) 
+
+lga_merge <- merge(lga_subjects, lga_Barray)
+
+lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fill = T)
+lga_Barray %>% naniar::vis_miss()
+
+# *****************
+# create missingness table for kalivas team
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
+allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date|subject)' ", intern = TRUE)
+
+startdate <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .)
+subject <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .)
+cohort <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character()
+experiment <- sapply(strsplit(allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T), "[_]"), "[", 4) %>% gsub("-.*", "",.) 
+
+allcohorts_df <- data.frame(startdate = startdate, 
+                            subject = subject,
+                            cohort = cohort,
+                            experiment = experiment) %>% 
+  arrange(subject, startdate, cohort)
+
+allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ]
+
+allcohorts_df_nodupes %>% spread(experiment, startdate) %>% head
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################# old code; before they uploaded the text files 
 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks")
 
