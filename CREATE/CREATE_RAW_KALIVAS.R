@@ -59,13 +59,20 @@ lga_Barray %>%
   slice(1) %>% 
   dplyr::filter(numberofBarrays != numberofsubjects) 
 
-lga_merge <- merge(lga_subjects, lga_Barray) %>% 
-  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+
+lga_merge <- merge(lga_subjects, lga_Barray) 
+lga_merge %>% naniar::vis_miss()
+
+lga_allsubjects <- left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (startdate - dob) %>% as.numeric %>% round)
-lga_merge %>% naniar::vis_miss()
+         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+  distinct() %>% 
+  arrange(internal_id, startdate) %>% 
+  select(-c(numseq, rownum, dob)) ## only the 80 in the mapping excel information
+lga_allsubjects %>% naniar::vis_miss()
+
 # *****************
 # create missingness table for kalivas team
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
