@@ -43,6 +43,7 @@ lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fil
   group_by(filename) %>% 
   mutate(numseq = row_number()) %>% 
   ungroup() 
+lga_Barray %>% naniar::vis_miss()
 
 dim(lga_Barray)
 dim(lga_subjects)
@@ -58,11 +59,13 @@ lga_Barray %>%
   slice(1) %>% 
   dplyr::filter(numberofBarrays != numberofsubjects) 
 
-lga_merge <- merge(lga_subjects, lga_Barray)
-
-lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fill = T)
-lga_Barray %>% naniar::vis_miss()
-
+lga_merge <- merge(lga_subjects, lga_Barray) %>% 
+  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (startdate - dob) %>% as.numeric %>% round)
+lga_merge %>% naniar::vis_miss()
 # *****************
 # create missingness table for kalivas team
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
@@ -71,19 +74,34 @@ allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date|subject
 startdate <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .)
 subject <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .)
 cohort <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character()
-experiment <- sapply(strsplit(allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T), "[_]"), "[", 4) %>% gsub("-.*", "",.) 
+experiment <- sapply(strsplit(allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T), "[_]"), "[", 4) %>% 
+  gsub("-.*", "",.) %>% 
+  gsub("day ", "", .) %>% 
+  gsub("ction3", "ction 3", .) %>% 
+  gsub("Prime test", "Prime rein", .)
+filename <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("MUSC_(.*?):") %>% as.data.frame() %>% 
+  select(V2) %>% unlist() %>% as.character()
 
 allcohorts_df <- data.frame(startdate = startdate, 
                             subject = subject,
                             cohort = cohort,
-                            experiment = experiment) %>% 
+                            experiment = experiment,
+                            filename = filename) %>% 
   arrange(subject, startdate, cohort)
 
-allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ]
-
-allcohorts_df_nodupes %>% spread(experiment, startdate) %>% head
+allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] 
 
 
+library(reshape2)
+# to spread and get tally 
+allcohorts_files <- dcast(allcohorts_df_nodupes, formula = subject ~ experiment, fun.aggregate = length) %>% 
+  left_join(allcohorts_df_nodupes[c("subject", "cohort")], ., by = "subject") %>% 
+  arrange(cohort, subject) %>% 
+  select(subject, cohort, "LgA 1", "LgA 2", "LgA 3", "LgA 4", "LgA 5", "LgA 6",
+         "LgA 7", "LgA 8", "LgA 9", "LgA 10", "LgA 11", "LgA 12", "LgA 13", "LgA 14", 
+         "LgA 15", "PR", "Prime rein", "Extinction 1", "Extinction 2", "Extinction 3", 
+         "Extinction 4", "Extinction 5", "Extinction 6", "Cued rein")
+write.xlsx(allcohorts_files, "allcohorts_df_count.xlsx")
 
 
 

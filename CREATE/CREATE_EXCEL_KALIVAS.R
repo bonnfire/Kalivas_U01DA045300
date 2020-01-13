@@ -16,6 +16,45 @@ all_excel_fnames <- list.files(full.names = T, recursive = T)
 kalivas_cohort2_excel <- u01.importxlsx(all_excel_fnames[1])
 kalivas_cohort3_excel <- u01.importxlsx(all_excel_fnames[2])
 
+# mapping files processing
+kalivas_cohort2_mapping <- kalivas_cohort2_excel$info_from_breeder
+
+names(kalivas_cohort2_mapping) <- c("dames", "sires", kalivas_cohort2_mapping[2,3:25]) %>% tolower()
+
+datecols <- c("dob", "dow", "shipmentdate")
+datefunction <- function(x){
+  if(is.POSIXct(x) == F){
+    as.POSIXct(as.numeric(x) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")
+  } else x
+}
+
+kalivas_cohort2_mapping <- kalivas_cohort2_mapping[-c(1:4),] %>% 
+  rename("dob" =  "date_of_birth", 
+         "dow" = "date_of_wean", 
+         "shipmentdate" = "date_of_ship") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
+  select(-date_of_delivery) %>% 
+  mutate_at(.vars = vars(datecols), .funs = datefunction)
+
+
+kalivas_cohort3_mapping <- kalivas_cohort3_excel$info_from_breeder
+names(kalivas_cohort3_mapping) <- c("dames", "sires", kalivas_cohort3_mapping[2,3:25]) %>% tolower()
+
+kalivas_cohort3_mapping <- kalivas_cohort3_mapping[-c(1:4),] %>% 
+  rename("dob" =  "date_of_birth", 
+         "dow" = "date_of_wean", 
+         "shipmentdate" = "date_of_ship") %>%  # date of ship = date of delivery so remove (kalivas_cohort3_mapping %>% subset(date_of_ship != date_of_delivery))
+  select(-date_of_delivery) %>% 
+  mutate_at(.vars = vars(datecols), .funs = datefunction)
+
+kalivas_allcohorts <- rbind(kalivas_cohort2_mapping, kalivas_cohort3_mapping) %>% 
+  mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
+  rename("rfid" = "microchip")
+
+
+
+
+
+
 
 ############################
 # Exp 1: ELEVATED PLUS MAZE
