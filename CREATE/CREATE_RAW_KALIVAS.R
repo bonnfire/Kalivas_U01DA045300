@@ -227,7 +227,75 @@ pr_allsubjects <- merge(pr_O_vals[c("PR_step", "subjectid")], pr_M_vals[c("total
   select(cohort_number, sex, rfid, internal_id, startdate, everything())
 
 # *****************
-##  Extinction_prime_test NOT HERE
+##  Extinction_prime_test (Is it primed reinstatement?)
+allcohorts_expr_fnames <- grep("Primed reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #72 files
+
+
+# Extract subject information
+expr_subjects <- lapply(allcohorts_expr_fnames, readsubject) %>% 
+  rbindlist(fill = T) %>% 
+  rename("subjectid"= "V1")
+# might not use this since the matrix is more complicated in finding subject id
+# %>% 
+#   group_by(filename) %>% 
+#   mutate(numseq = row_number()) %>% 
+#   ungroup() %>% 
+#   arrange(filename, numseq)
+expr_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
+
+
+# get A (inactive) lever presses 
+readAarray <- function(x){
+  Aarray <- fread(paste0("awk '/A:/{flag=1;next}/B:/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
+  return(Aarray)
+} ## checkin with Apurva
+
+expr_Aarray <- lapply(allcohorts_expr_fnames, readAarray) %>% rbindlist(fill = T)
+expr_Aarray_indices <- grep("^0:$", expr_Aarray$V1)
+split_Aarray_expr <- split(expr_Aarray, cumsum(1:nrow(expr_Aarray) %in% expr_Aarray_indices))
+processedAdata_expr <- lapply(split_Aarray_expr, function(x){
+  indexremoved <- x %>% select(-V1)
+  Aarray <- as.vector(t(data.matrix(indexremoved)))
+  Aarray <- Aarray[!is.na(Aarray)]
+  Aarray <- colSums(matrix(Aarray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
+  Aarray <- data.frame(inactive_leverpresses = Aarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
+  return(Aarray)
+})
+names(processedAdata_expr) <- expr_subjects$subjectid
+processedAdata_expr_wide <- processedAdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, inactive_leverpresses)
+
+# get D (active) lever presses
+readDarray <- function(x){
+  Darray <- fread(paste0("awk '/D:/{flag=1;next}/E/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
+  return(Darray)
+} ## checkin with Apurva
+
+expr_Darray <- lapply(allcohorts_expr_fnames, readDarray) %>% rbindlist(fill = T)
+expr_Darray_indices <- grep("^0:$", expr_Darray$V1)
+split_Darray_expr <- split(expr_Darray, cumsum(1:nrow(expr_Darray) %in% expr_Darray_indices))
+processedDdata_expr <- lapply(split_Darray_expr, function(x){
+  indexremoved <- x %>% select(-V1)
+  Darray <- as.vector(t(data.matrix(indexremoved)))
+  Darray <- Darray[!is.na(Darray)]
+  Darray <- colSums(matrix(Darray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
+  Darray <- data.frame(active_leverpresses = Darray[1:6], time_bin = paste0("active_hour_", 1:6))
+  return(Darray)
+})
+names(processedDdata_expr) <- expr_subjects$subjectid
+processedDdata_expr_wide <- processedDdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, active_leverpresses)
+
+expr_allsubjects <- merge(processedAdata_expr_wide, processedDdata_expr_wide) %>%  
+  merge(expr_subjects)  %>% 
+  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+  distinct() %>% 
+  arrange(cohort_number, internal_id) %>% 
+  select(-c("dob")) %>%  
+  select(cohort_number, sex, rfid, internal_id, startdate, everything())
+
 
 # *****************
 ##  Extinction
