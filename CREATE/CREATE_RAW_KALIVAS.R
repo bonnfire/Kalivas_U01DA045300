@@ -148,12 +148,30 @@ readM_O <- function(x){
 pr_Parray <- lapply(allcohorts_pr_fnames, readParray) %>% rbindlist(fill = T)  
 pr_Parray_indices <- grep("^0:$", pr_Parray$V1)
 split_Parray <- split(pr_Parray, cumsum(1:nrow(pr_Parray) %in% pr_Parray_indices))
-processeddata <- lapply(split_Parray, function(x){
+processedPdata <- lapply(split_Parray, function(x){
   indexremoved <- x %>% select(-V1)
   Parray <- as.vector(t(data.matrix(indexremoved)))
   Parray <- Parray[!is.na(Parray)]
   Parray <- prepend(Parray, 1) #PR list with each break point listed, expect for the first breakpoint, which is 1. -MedPC column descriptions (cohort2-- could be an issue for other cohorts- checkXX )
+  Parray <- append(Parray, x$filename[1])
   return(Parray)
+})
+
+make.unique = function(x, sep='_'){
+  ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+}
+
+
+processedPdata_names <- sapply(processedPdata, function(x){
+  last <- tail(x, 1)
+  return(last)
+}) %>% make.unique() %>% unlist() %>% as.character()
+names(processedPdata) <- processedPdata_names
+
+processedPdata <- lapply(processedPdata, function(x){
+  x <- x[-length(x)] # remove last value in vector 
+  x <- as.numeric(x) # turn vector back into numeric
+  return(x)
 })
 
 pr_Barray <- lapply(allcohorts_pr_fnames, readBarray) %>% rbindlist(fill = T) %>% 
