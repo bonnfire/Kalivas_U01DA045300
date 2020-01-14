@@ -323,7 +323,11 @@ rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c
   arrange(cohort_number, internal_id) %>% 
   select(-c("dob")) %>%  
   select(cohort_number, sex, rfid, internal_id, startdate, inactive_lever, active_lever, experimentage, filename) 
-### most of the NA are dead animals BUT check because there might be exceptions
+### most of the NA are dead animals BUT check because there might be exceptions # make excel vs raw graph esp for KAL043 because there seem to be wrong data
+
+
+
+
 
 
 
