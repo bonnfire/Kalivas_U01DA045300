@@ -195,8 +195,7 @@ pr_Barray <- lapply(allcohorts_pr_fnames, readBarray) %>% rbindlist(fill = T) %>
   
 pr_M_O <- lapply(allcohorts_pr_fnames, readM_O) %>% rbindlist(fill = T) %>% 
   tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
-  rename("value" = "V2")  %>% 
-  rename("subjectid" = "pr_subjects$subjectid")
+  rename("value" = "V2") 
 
 pr_O_vals <- pr_M_O %>% 
   dplyr::filter(var == "O") %>% 
@@ -227,7 +226,104 @@ pr_allsubjects <- merge(pr_O_vals[c("PR_step", "subjectid")], pr_M_vals[c("total
   select(-c("dob")) %>%  
   select(cohort_number, sex, rfid, internal_id, startdate, everything())
 
+# *****************
+##  Extinction_prime_test NOT HERE
 
+# *****************
+##  Extinction
+allcohorts_ex_fnames <- grep("extinction", allcohorts_allexp_filenames, ignore.case = T, value = T) #72 files
+
+# Extract subject information
+ex_subjects <- lapply(allcohorts_ex_fnames, readsubject) %>% 
+  rbindlist(fill = T) %>% 
+  rename("subjectid"= "V1") %>% 
+  group_by(filename) %>% 
+  mutate(numseq = row_number()) %>% 
+  ungroup() %>% 
+  arrange(filename, numseq)
+ex_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
+
+read_WX <- function(x){
+  WX <- fread(paste0("grep -irEn '^(W|X):' ", "'", x, "'"), header = F, fill = T)
+  WX$filename <- x 
+  return(WX)
+}
+
+ex_WX <- lapply(allcohorts_ex_fnames, read_WX) %>% rbindlist(fill = T) %>%
+  tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
+  rename("value" = "V2") %>%
+  mutate(rownum = as.numeric(rownum)) %>% 
+  arrange(filename, rownum)   
+ex_W <- ex_WX %>% 
+  dplyr::filter(var == "W") %>% 
+  cbind(ex_subjects$subjectid, .) %>% 
+  rename("subjectid" = "ex_subjects$subjectid",
+         "inactive_lever" = "value") 
+ex_X <- ex_WX %>% 
+  dplyr::filter(var == "X") %>% 
+  cbind(ex_subjects$subjectid, .) %>% 
+  rename("subjectid" = "ex_subjects$subjectid",
+         "active_lever" = "value")
+ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>% 
+  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+  distinct() %>% 
+  arrange(cohort_number, internal_id) %>% 
+  select(-c("dob")) %>%  
+  select(cohort_number, sex, rfid, internal_id, startdate, inactive_lever, active_lever, experimentage, filename) 
+### most of the NA are dead animals BUT check because there might be exceptions
+
+
+# *****************
+##  Cued reinstatement
+allcohorts_rein_fnames <- grep("cued reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #12 files
+
+# Extract subject information
+rein_subjects <- lapply(allcohorts_rein_fnames, readsubject) %>% 
+  rbindlist(fill = T) %>% 
+  rename("subjectid"= "V1") %>% 
+  group_by(filename) %>% 
+  mutate(numseq = row_number()) %>% 
+  ungroup() %>% 
+  arrange(filename, numseq)
+rein_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
+
+read_WX <- function(x){
+  WX <- fread(paste0("grep -iEn '^(W|X):' ", "'", x, "'"), header = F, fill = T)
+  WX$filename <- x 
+  return(WX)
+}
+
+rein_WX <- lapply(allcohorts_rein_fnames, read_WX) %>% rbindlist(fill = T) %>%
+  tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
+  rename("value" = "V2") %>%
+  mutate(rownum = as.numeric(rownum)) %>% 
+  arrange(filename, rownum)   
+rein_W <- rein_WX %>% 
+  dplyr::filter(var == "W") %>% 
+  arrange(filename, rownum) %>% 
+  cbind(rein_subjects$subjectid, .) %>% 
+  rename("subjectid" = "rein_subjects$subjectid",
+         "inactive_lever" = "value") 
+rein_X <- rein_WX %>% 
+  dplyr::filter(var == "X") %>% 
+  cbind(rein_subjects$subjectid, .) %>% 
+  rename("subjectid" = "rein_subjects$subjectid",
+         "active_lever" = "value")
+rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c("subjectid", "active_lever", "filename")]) %>% 
+  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+  distinct() %>% 
+  arrange(cohort_number, internal_id) %>% 
+  select(-c("dob")) %>%  
+  select(cohort_number, sex, rfid, internal_id, startdate, inactive_lever, active_lever, experimentage, filename) 
+### most of the NA are dead animals BUT check because there might be exceptions
 
 
 
