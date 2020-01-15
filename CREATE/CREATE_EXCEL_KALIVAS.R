@@ -58,52 +58,41 @@ make_unique = function(x, sep='_'){
 }
 
 
-### long access
-kalivas_cohort2_lga_xl <- kalivas_cohort2_excel$LgA_SA[10:nrow(kalivas_cohort2_excel$LgA_SA),]
-names(kalivas_cohort2_lga_xl) <- tolower(kalivas_cohort2_excel$LgA_SA[9,]) %>% make_unique()
-
-kalivas_cohort2_lga_xl <- kalivas_cohort2_lga_xl %>%
-  dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na 
-  gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
-  extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)") %>%
-  spread(measurement, value) 
-
-kalivas_cohort2_lga_xl_sessiondosage <- kalivas_cohort2_excel$LgA_SA[1:8,]
-# kalivas_cohort2_lga_xl_sessiondosage <- 
+### long access XX DURING NEXT SESSION, CLEAR ENVIRONMENT OUT AND RERUN 
+lga_extract_process_excel <- function(x){
   
-kalivas_cohort2_lga_xl_sessiondosage <- kalivas_cohort2_lga_xl_sessiondosage %>% 
-  select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
-  t() %>% 
-  cbind(rownames(.), ., row.names = NULL) %>% 
-  as.data.frame(row.names = NULL) %>% 
-  mutate_all(str_trim) %>% 
-  magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>% 
-  dplyr::filter(row_number() != 1)
+  df_values <- x$LgA_SA[10:nrow(x$LgA_SA),]
+  names(df_values) <- tolower(x$LgA_SA[9,]) %>% make_unique()
+  
+  df_values <- df_values %>%
+    dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na 
+    gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
+    extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)") %>%
+    spread(measurement, value) 
+  
+  df_sessiondosage <- x$LgA_SA[1:8,]
+  # df_values_sessiondosage <- 
+  
+  df_sessiondosage <- df_sessiondosage %>% 
+    select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+    t() %>% 
+    cbind(rownames(.), ., row.names = NULL) %>% 
+    as.data.frame(row.names = NULL) %>% 
+    mutate_all(str_trim) %>% 
+    magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>% 
+    dplyr::filter(row_number() != 1) %>% 
+    mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01"),
+           session = str_extract_all(session, "\\d+")[[1]])
+  
+  
+  df <- left_join(df_values, df_sessiondosage, by = "session") %>% 
+    mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
+    rename("rfid" = "microchip")
 
-
-names(kalivas_cohort2_lga_xl_sessiondosage) <- kalivas_cohort2_lga_xl_sessiondosage[1, ] %>% unlist() %>% as.character %>% tolower
-kalivas_cohort2_lga_xl_sessiondosage <- kalivas_cohort2_lga_xl_sessiondosage[-1,]
-rownames(kalivas_cohort2_lga_xl_sessiondosage) <- NULL
-
-kalivas_cohort2_excel$LgA_SA[1:8,] %>% names %>% grep("Heroin", ., ignore.case = T, value = T) 
-
-
-kalivas_cohort2_lga_xl_long <- kalivas_cohort2_lga_xl %>%
-  dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na 
-  gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
-  extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)") %>%
-  spread(measurement, value) 
-
-
-
-
-
-# function(x){
-#   df <- 
-#   return(df)
-# }
-
-
+  return(df)
+}
+kalivas_cohort2_excel_processed <- lga_extract_process_excel(kalivas_cohort2_excel)
+kalivas_cohort3_excel_processed <- lga_extract_process_excel(kalivas_cohort3_excel)
 
 
 # ############################
