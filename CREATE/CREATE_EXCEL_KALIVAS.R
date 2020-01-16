@@ -74,7 +74,7 @@ extract_process_excel <- function(x, y){
     extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)") %>%
     spread(measurement, value)
   
-  df_sessiondosage <- eval(substitute(y), x)[1:databegins_index-1,]
+  df_sessiondosage <- eval(substitute(y), x)[1:(databegins_index-1),]
   # df_values_sessiondosage <-
   
   df_sessiondosage <- df_sessiondosage %>%
@@ -100,13 +100,96 @@ kalivas_lga_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_
 
 # *****************
 ##  PR_test
-## DOESN'T WORK BECAUSE OF ISSUE IN THE SPREAD kalivas_pr_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, PR_test) %>% 
-  # rbind(extract_process_excel(kalivas_cohort3_excel, PR_test))
+
+extract_process_excel_shortened <- function(x, y){
+  
+  databegins_index <- which(eval(substitute(y), x)[,1] == "Microchip")
+  
+  df_values <- eval(substitute(y), x)[(databegins_index + 1):nrow(eval(substitute(y), x)),]
+  
+  make_unique = function(x, sep='_'){
+    ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+  }
+  names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% gsub(" ", "", .) %>% tolower() %>% make_unique()
+  
+  df_values <- df_values %>%
+    dplyr::filter(!is.na(microchip))  ## okay doing this bc all other data na
+  
+  df_sessiondosage <- eval(substitute(y), x)[1:(databegins_index-1),]
+  # df_values_sessiondosage <-
+  
+  df_sessiondosage <- df_sessiondosage %>%
+    select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+    t() %>%
+    cbind(rownames(.), ., row.names = NULL) %>%
+    as.data.frame(row.names = NULL) %>%
+    mutate_all(str_trim) %>%
+    magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>%
+    dplyr::filter(row_number() != 1) %>%
+    mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01"))
+  
+  
+  df <- cbind(df_values, df_sessiondosage) %>%
+    mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
+    rename("rfid" = "microchip")
+  
+  return(df)
+}
+
+
+kalivas_pr_allcohorts_excel_processed <- extract_process_excel_shortened(kalivas_cohort2_excel, PR_test) %>% 
+  rbind(extract_process_excel_shortened(kalivas_cohort3_excel, PR_test))
+
+which(kalivas_cohort2_excel$PR_test[,1] == "Microchip")
+test_values <- kalivas_cohort2_excel$PR_test[1:(9-1),]
+
 
 # *****************
 ##  Extinction_prime_test (Is it primed reinstatement?)
-kalivas_extpr_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, extinction_prime_test) %>% 
-    rbind(extract_process_excel(kalivas_cohort3_excel, extinction_prime_test))
+
+extract_process_excel_expr <- function(x, y){
+  
+  databegins_index <- which(eval(substitute(y), x)[,1] == "Microchip")
+  
+  df_values <- eval(substitute(y), x)[(databegins_index + 1):nrow(eval(substitute(y), x)),]
+  
+  make_unique = function(x, sep='_'){
+    ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+  }
+  names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% tolower() %>% make_unique()
+  
+  df_values <- df_values %>%
+    dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na
+    gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
+    extract(var, c("measurement", "session"), "(\\D+_?\\d?)_(\\d)") %>% 
+    mutate(session = ifelse(session == 1, "inactive", "active"))  %>%
+    rename("lever" = "session") %>% 
+    spread(measurement, value)
+  
+  df_sessiondosage <- eval(substitute(y), x)[1:(databegins_index-1),]
+  # df_values_sessiondosage <-
+
+  df_sessiondosage <- df_sessiondosage %>%
+    select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+    t() %>%
+    cbind(rownames(.), ., row.names = NULL) %>%
+    as.data.frame(row.names = NULL) %>%
+    mutate_all(str_trim) %>%
+    magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>%
+    dplyr::filter(row_number() != 1) %>%
+    select(-lever) %>% 
+    mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01"))
+
+
+  df <- cbind(df_values, df_sessiondosage) %>%
+    mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
+    rename("rfid" = "microchip")
+
+  return(df)
+}
+
+kalivas_expr_allcohorts_excel_processed <- extract_process_excel_expr(kalivas_cohort2_excel, extinction_prime_test) %>% 
+    rbind(extract_process_excel_expr(kalivas_cohort3_excel, extinction_prime_test))
 
 # *****************
 ##  Extinction
