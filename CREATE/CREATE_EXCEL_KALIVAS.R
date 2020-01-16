@@ -66,8 +66,8 @@ extract_process_excel <- function(x, y){
   make_unique = function(x, sep='_'){
     ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
   }
-  names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% tolower() %>% make_unique()
-
+  names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% gsub(" ", "", .) %>% tolower() %>% make_unique()
+  
   df_values <- df_values %>%
     dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na
     gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
@@ -159,7 +159,7 @@ extract_process_excel_expr <- function(x, y){
   make_unique = function(x, sep='_'){
     ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
   }
-  names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% tolower() %>% make_unique()
+  names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% gsub(" ", "", .) %>% tolower() %>% make_unique()
   
   df_values <- df_values %>%
     dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na

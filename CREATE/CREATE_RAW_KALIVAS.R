@@ -70,7 +70,8 @@ lga_allsubjects <- left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid
          experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
   distinct() %>% 
   arrange(internal_id, startdate) %>% 
-  select(-c(numseq, rownum, dob)) ## only the 80 in the mapping excel information
+  select(-c(numseq, rownum, dob)) %>%  ## only the 80 in the mapping excel information
+  mutate(session = gsub(".*day ", "", filename))
 lga_allsubjects %>% naniar::vis_miss()
 
 # *****************

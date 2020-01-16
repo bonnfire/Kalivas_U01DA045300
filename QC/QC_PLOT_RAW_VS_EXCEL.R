@@ -4,13 +4,45 @@
 
 ####### long access 
 # merge and graph 
-lga_allsubjects
+# lga_allsubjects_tograph <- lga_allsubjects %>% head
 
-kalivas_lga_allcohorts_excel_processed %>% head
+lga_allsubjects_tograph <- left_join(kalivas_lga_allcohorts_excel_processed, lga_allsubjects[,c("internal_id", "session", "inactive_lever", "active_lever", "infusions", "filename")] , by = c("internal_id", "session"))
+names(lga_allsubjects_tograph) <- mgsub::mgsub(names(lga_allsubjects_tograph), c("\\.x", "\\.y"), c("_excel", "_raw")) %>% gsub(" ", "", .)
+
+# kalivas_lga_measures <- names(lga_allsubjects_tograph)[grepl("raw|excel", names(lga_allsubjects_tograph) )] 
+kalivas_lga_measures <- c("active_lever_excel", "inactive_lever_excel", "infusions_excel", "active_lever_raw", "inactive_lever_raw", "infusions_raw") # for the correct order
+lga_allsubjects_tograph <- lga_allsubjects_tograph %>% 
+  mutate_at(kalivas_lga_measures, as.numeric)
+# create plots 
+
+pdf("kalivas_longaccess.pdf", onefile = T)
+for (i in 1:(length(kalivas_lga_measures)/2)){
+  g <-  ggplot(lga_allsubjects_tograph, aes_string(x = kalivas_lga_measures[i], y = kalivas_lga_measures[i+3])) + 
+    geom_point() + 
+    labs(title = paste0(kalivas_lga_measures[i], "_Raw_VS_Excel_U01_Kalivas", "\n")) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  
+  # g_cohort <-  ggplot(lga_allsubjects_tograph, aes_string(x = kalivas_lga_measures[i], y = kalivas_lga_measures[i+3])) + 
+  #   geom_point(aes(color = cohort_number)) + 
+  #   facet_grid(~ cohort_number)
+  #   labs(title = paste0(kalivas_lga_measures[i], "_Raw_VS_Excel_U01_Kalivas", "\n")) + 
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  
+  print(g)
+  # print(g_cohort)
+}
+
+dev.off()
+
+lga_allsubjects_tograph %>% 
+  dplyr::filter(active_lever_excel != active_lever_raw)
+lga_allsubjects_tograph %>% 
+  dplyr::filter(inactive_lever_excel != inactive_lever_raw)
+lga_allsubjects_tograph %>% 
+  dplyr::filter(infusions_excel != infusions_raw)
 
 
-
-
+####### progressive ratio 
 
 
 
