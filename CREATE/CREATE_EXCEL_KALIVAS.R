@@ -53,46 +53,69 @@ kalivas_allcohorts <- rbind(kalivas_cohort2_mapping, kalivas_cohort3_mapping) %>
 
 
 ############### extract for raw vs excel comparison
-make_unique = function(x, sep='_'){
-  ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
-}
 
 
-### long access XX DURING NEXT SESSION, CLEAR ENVIRONMENT OUT AND RERUN 
-lga_extract_process_excel <- function(x){
+
+### long access 
+extract_process_excel <- function(x, y){
   
-  df_values <- x$LgA_SA[10:nrow(x$LgA_SA),]
-  names(df_values) <- tolower(x$LgA_SA[9,]) %>% make_unique()
+  databegins_index <- which(eval(substitute(y), x)[,1] == "Microchip")
+  
+  df_values <- eval(substitute(y), x)[(databegins_index + 1):nrow(eval(substitute(y), x)),]
+  
+  make_unique = function(x, sep='_'){
+    ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+  }
+  names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% tolower() %>% make_unique()
   
   df_values <- df_values %>%
-    dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na 
+    dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na
     gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
     extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)") %>%
-    spread(measurement, value) 
+    spread(measurement, value)
   
-  df_sessiondosage <- x$LgA_SA[1:8,]
-  # df_values_sessiondosage <- 
+  df_sessiondosage <- eval(substitute(y), x)[1:databegins_index-1,]
+  # df_values_sessiondosage <-
   
-  df_sessiondosage <- df_sessiondosage %>% 
+  df_sessiondosage <- df_sessiondosage %>%
     select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
-    t() %>% 
-    cbind(rownames(.), ., row.names = NULL) %>% 
-    as.data.frame(row.names = NULL) %>% 
-    mutate_all(str_trim) %>% 
-    magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>% 
-    dplyr::filter(row_number() != 1) %>% 
+    t() %>%
+    cbind(rownames(.), ., row.names = NULL) %>%
+    as.data.frame(row.names = NULL) %>%
+    mutate_all(str_trim) %>%
+    magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>%
+    dplyr::filter(row_number() != 1) %>%
     mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01"),
            session = str_extract_all(session, "\\d+")[[1]])
   
   
-  df <- left_join(df_values, df_sessiondosage, by = "session") %>% 
+  df <- left_join(df_values, df_sessiondosage, by = "session") %>%
     mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
     rename("rfid" = "microchip")
-
+  
   return(df)
 }
-kalivas_cohort2_excel_processed <- lga_extract_process_excel(kalivas_cohort2_excel)
-kalivas_cohort3_excel_processed <- lga_extract_process_excel(kalivas_cohort3_excel)
+kalivas_lga_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, LgA_SA) %>% 
+  rbind(extract_process_excel(kalivas_cohort3_excel, LgA_SA))
+
+# *****************
+##  PR_test
+## DOESN'T WORK BECAUSE OF ISSUE IN THE SPREAD kalivas_pr_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, PR_test) %>% 
+  # rbind(extract_process_excel(kalivas_cohort3_excel, PR_test))
+
+# *****************
+##  Extinction_prime_test (Is it primed reinstatement?)
+kalivas_extpr_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, extinction_prime_test) %>% 
+    rbind(extract_process_excel(kalivas_cohort3_excel, extinction_prime_test))
+
+# *****************
+##  Extinction
+
+
+# *****************
+##  Cued reinstatement
+
+
 
 
 # ############################
