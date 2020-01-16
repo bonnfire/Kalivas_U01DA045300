@@ -193,10 +193,23 @@ kalivas_expr_allcohorts_excel_processed <- extract_process_excel_expr(kalivas_co
 
 # *****************
 ##  Extinction
-
+kalivas_ex_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, extinction) %>% 
+  rbind(extract_process_excel(kalivas_cohort3_excel, extinction))
 
 # *****************
 ##  Cued reinstatement
+kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened(kalivas_cohort2_excel, cued_reinstatement) %>% 
+  rbind(extract_process_excel_shortened(kalivas_cohort3_excel, cued_reinstatement))
+
+
+
+
+
+
+
+
+
+
 
 
 
