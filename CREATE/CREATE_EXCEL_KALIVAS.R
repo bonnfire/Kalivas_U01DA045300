@@ -62,21 +62,22 @@ extract_process_excel <- function(x, y){
   databegins_index <- which(eval(substitute(y), x)[,1] == "Microchip")
   
   df_values <- eval(substitute(y), x)[(databegins_index + 1):nrow(eval(substitute(y), x)),]
-  
+
   make_unique = function(x, sep='_'){
     ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
   }
   names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% tolower() %>% make_unique()
-  
+
   df_values <- df_values %>%
     dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na
     gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
     extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)") %>%
-    spread(measurement, value)
+    spread(measurement, value) %>% 
+    mutate(self_administration_box = self_administration_box %>% as.numeric %>% round(2) %>% as.character)
+    
   
   df_sessiondosage <- eval(substitute(y), x)[1:(databegins_index-1),]
-  # df_values_sessiondosage <-
-  
+
   df_sessiondosage <- df_sessiondosage %>%
     select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
     t() %>%
@@ -86,15 +87,16 @@ extract_process_excel <- function(x, y){
     magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>%
     dplyr::filter(row_number() != 1) %>%
     mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01"),
-           session = str_extract_all(session, "\\d+")[[1]])
+           session = str_extract(session, "\\d+"))
   
   
   df <- left_join(df_values, df_sessiondosage, by = "session") %>%
     mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
     rename("rfid" = "microchip")
-  
+
   return(df)
 }
+extract_process_excel(kalivas_cohort2_excel, LgA_SA)
 kalivas_lga_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, LgA_SA) %>% 
   rbind(extract_process_excel(kalivas_cohort3_excel, LgA_SA))
 
@@ -113,7 +115,8 @@ extract_process_excel_shortened <- function(x, y){
   names(df_values) <- eval(substitute(y), x)[databegins_index,] %>% gsub(" ", "", .) %>% tolower() %>% make_unique()
   
   df_values <- df_values %>%
-    dplyr::filter(!is.na(microchip))  ## okay doing this bc all other data na
+    dplyr::filter(!is.na(microchip)) %>% ## okay doing this bc all other data na
+    mutate(self_administration_box = self_administration_box %>% as.numeric %>% round(2) %>% as.character) 
   
   df_sessiondosage <- eval(substitute(y), x)[1:(databegins_index-1),]
   # df_values_sessiondosage <-
@@ -164,7 +167,8 @@ extract_process_excel_expr <- function(x, y){
     extract(var, c("measurement", "session"), "(\\D+_?\\d?)_(\\d)") %>% 
     mutate(session = ifelse(session == 1, "inactive", "active"))  %>%
     rename("lever" = "session") %>% 
-    spread(measurement, value)
+    spread(measurement, value) %>% 
+    mutate(self_administration_box = self_administration_box %>% as.numeric %>% round(2) %>% as.character)
   
   df_sessiondosage <- eval(substitute(y), x)[1:(databegins_index-1),]
   # df_values_sessiondosage <-
@@ -200,10 +204,6 @@ kalivas_ex_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_e
 ##  Cued reinstatement
 kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened(kalivas_cohort2_excel, cued_reinstatement) %>% 
   rbind(extract_process_excel_shortened(kalivas_cohort3_excel, cued_reinstatement))
-
-
-
-
 
 
 

@@ -3,6 +3,15 @@
 # using objects created in Raw folders 
 
 ####### long access 
+# merge and graph 
+lga_allsubjects
+
+kalivas_lga_allcohorts_excel_processed %>% head
+
+
+
+
+
 
 
 
