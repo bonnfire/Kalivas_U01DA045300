@@ -77,9 +77,12 @@ lga_allsubjects %>% naniar::vis_miss()
 # *****************
 # create missingness table for kalivas team
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date|subject)' ", intern = TRUE)
-
+allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date|subject|box):' ", intern = TRUE)
+# don't know why start date returns 2370 resutls
+# startdate2 <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date)' ", intern = TRUE) 
+# startdate <- startdate2 %>% gsub("\r", "", .) %>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .) 
 startdate <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .)
+box <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Box:", ., value = T) %>% sub(".*Box:", "", .) %>% gsub(" ", "", .)
 subject <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .)
 cohort <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character()
 experiment <- sapply(strsplit(allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T), "[_]"), "[", 4) %>% 
@@ -93,6 +96,7 @@ filename <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T
 allcohorts_df <- data.frame(startdate = startdate, 
                             subject = subject,
                             cohort = cohort,
+                            box = box, 
                             experiment = experiment,
                             filename = filename) %>% 
   arrange(subject, startdate, cohort)
