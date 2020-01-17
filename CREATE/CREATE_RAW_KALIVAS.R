@@ -60,7 +60,7 @@ lga_Barray %>%
   dplyr::filter(numberofBarrays != numberofsubjects) 
 
 
-lga_merge <- merge(lga_subjects, lga_Barray) 
+lga_merge <- merge(lga_subjects, lga_Barray) %>% mutate(subjectid = ifelse(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0))))
 lga_merge %>% naniar::vis_miss()
 
 lga_allsubjects <- left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
@@ -78,9 +78,7 @@ lga_allsubjects %>% naniar::vis_miss()
 # create missingness table for kalivas team
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
 allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date|subject|box):' ", intern = TRUE)
-# don't know why start date returns 2370 resutls
-# startdate2 <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date)' ", intern = TRUE) 
-# startdate <- startdate2 %>% gsub("\r", "", .) %>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .) 
+
 startdate <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .)
 box <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Box:", ., value = T) %>% sub(".*Box:", "", .) %>% gsub(" ", "", .)
 subject <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .)
