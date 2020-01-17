@@ -144,7 +144,6 @@ kalivas_pr_allcohorts_excel_processed <- extract_process_excel_shortened(kalivas
   rbind(extract_process_excel_shortened(kalivas_cohort3_excel, PR_test))
 
 which(kalivas_cohort2_excel$PR_test[,1] == "Microchip")
-test_values <- kalivas_cohort2_excel$PR_test[1:(9-1),]
 
 
 # *****************

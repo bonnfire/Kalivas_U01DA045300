@@ -44,6 +44,9 @@ lga_allsubjects_tograph %>%
 
 ####### progressive ratio 
 
+lga_allsubjects_tograph <- left_join(kalivas_pr_allcohorts_excel_processed, pr_allsubjects[,c("internal_id", "session", "inactive_lever", "active_lever", "infusions", "filename")] , by = c("internal_id", "session"))
+names(lga_allsubjects_tograph) <- mgsub::mgsub(names(lga_allsubjects_tograph), c("\\.x", "\\.y"), c("_excel", "_raw")) %>% gsub(" ", "", .)
+
 
 
 
