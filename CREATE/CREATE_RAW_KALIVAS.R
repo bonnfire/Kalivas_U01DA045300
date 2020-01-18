@@ -206,7 +206,7 @@ pr_O_vals <- pr_M_O %>%
   dplyr::select(-c("rownum", "var")) %>% 
   mutate(value = value + 1)  %>% # prevent the 0 digit issue
   rename("subjectid" = "pr_subjects$subjectid")
-pr_O_vals$PR_step <- pr_Parray[pr_O_vals$value]
+pr_O_vals$pr_step <- pr_Parray[pr_O_vals$value]
 
 pr_M_vals <- pr_M_O %>% 
   dplyr::filter(var == "M") %>% 
@@ -215,9 +215,11 @@ pr_M_vals <- pr_M_O %>%
   rename("subjectid" = "pr_subjects$subjectid",
          "total_session_minutes" = "value")
 
-pr_allsubjects <- merge(pr_O_vals[c("PR_step", "subjectid")], pr_M_vals[c("total_session_minutes", "subjectid")]) %>% 
+pr_allsubjects <- merge(pr_O_vals[c("pr_step", "subjectid")], pr_M_vals[c("total_session_minutes", "subjectid")]) %>% 
   merge(pr_Barray) %>% 
   select(-c(rownum)) %>%
+  mutate(subjectid = as.character(subjectid),
+    subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
   # mutate(cohort = str_match(filename, "/(.*?)/")[,2] %>% gsub("^.*([0-9]+).*", "\\1", .) %>% str_pad(., 2, pad = "0")) %>% 
   left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
@@ -261,11 +263,12 @@ processedAdata_expr <- lapply(split_Aarray_expr, function(x){
   Aarray <- as.vector(t(data.matrix(indexremoved)))
   Aarray <- Aarray[!is.na(Aarray)]
   Aarray <- colSums(matrix(Aarray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
-  Aarray <- data.frame(inactive_leverpresses = Aarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
+  # Aarray <- data.frame(inactive_leverpresses = Aarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
+  Aarray <- data.frame(leverpresses = Aarray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "inactive")
   return(Aarray)
 })
 names(processedAdata_expr) <- expr_subjects$subjectid
-processedAdata_expr_wide <- processedAdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, inactive_leverpresses)
+processedAdata_expr_wide <- processedAdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, leverpresses)
 
 # get D (active) lever presses
 readDarray <- function(x){
@@ -281,14 +284,17 @@ processedDdata_expr <- lapply(split_Darray_expr, function(x){
   Darray <- as.vector(t(data.matrix(indexremoved)))
   Darray <- Darray[!is.na(Darray)]
   Darray <- colSums(matrix(Darray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
-  Darray <- data.frame(active_leverpresses = Darray[1:6], time_bin = paste0("active_hour_", 1:6))
+  # Darray <- data.frame(active_leverpresses = Darray[1:6], time_bin = paste0("active_hour_", 1:6))
+  Darray <- data.frame(leverpresses = Darray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "active")
   return(Darray)
 })
 names(processedDdata_expr) <- expr_subjects$subjectid
-processedDdata_expr_wide <- processedDdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, active_leverpresses)
+processedDdata_expr_wide <- processedDdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, leverpresses)
 
-expr_allsubjects <- merge(processedAdata_expr_wide, processedDdata_expr_wide) %>%  
-  merge(expr_subjects)  %>% 
+expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>%  
+  merge(expr_subjects)  %>%
+  mutate(subjectid = as.character(subjectid),
+         subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
   left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
