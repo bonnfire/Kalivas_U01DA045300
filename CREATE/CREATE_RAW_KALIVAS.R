@@ -342,15 +342,18 @@ ex_X <- ex_WX %>%
   rename("subjectid" = "ex_subjects$subjectid",
          "active_lever" = "value")
 ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>% 
+  mutate(subjectid = as.character(subjectid),
+         subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
   left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+         experimentage = (startdate - dob) %>% as.numeric %>% round,
+         session = gsub(".*Extinction ", "", filename)) %>% 
   distinct() %>% 
   arrange(cohort_number, internal_id) %>% 
   select(-c("dob")) %>%  
-  select(cohort_number, sex, rfid, internal_id, startdate, inactive_lever, active_lever, experimentage, filename) 
+  select(cohort_number, sex, rfid, internal_id, session, startdate, inactive_lever, active_lever, experimentage, filename) 
 ### most of the NA are dead animals BUT check because there might be exceptions
 
 
