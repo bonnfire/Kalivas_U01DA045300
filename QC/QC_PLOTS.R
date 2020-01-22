@@ -87,11 +87,11 @@ for (i in 1:(length(kalivas_lga_measures)/2)){
          y = gsub("_(?!excel)", " ", gsub("_excel", "", kalivas_lga_measures[i]), perl = T)) + 
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
   
-  lga_allsubjects_tograph %>% select(cohort_number, self_administration_room) %>% table %>% kable 
-  lga_allsubjects_tograph %>% select(cohort_number, reinforcement_schedule) %>% table %>% kable 
-  lga_allsubjects_tograph %>% select(sex, self_administration_box) %>% table %>% kable 
-  lga_allsubjects_tograph %>% select(cohort_number, self_administration_box) %>% table %>% kable 
-  
+  # lga_allsubjects_tograph %>% select(cohort_number, self_administration_room) %>% table %>% kable 
+  # lga_allsubjects_tograph %>% select(cohort_number, reinforcement_schedule) %>% table %>% kable 
+  # lga_allsubjects_tograph %>% select(sex, self_administration_box) %>% table %>% kable 
+  # lga_allsubjects_tograph %>% select(cohort_number, self_administration_box) %>% table %>% kable 
+  # 
   
   print(g_cohort)
   print(g_room)

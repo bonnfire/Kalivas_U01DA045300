@@ -36,11 +36,22 @@ for (i in 1:(length(kalivas_lga_measures)/2)){
 dev.off()
 
 lga_allsubjects_tograph %>% 
-  dplyr::filter(active_lever_excel != active_lever_raw)
+  dplyr::filter(active_lever_excel != active_lever_raw) %>% select(rfid, sex, cohort_number, internal_id, session, active_lever_excel, active_lever_raw, filename)
 lga_allsubjects_tograph %>% 
   dplyr::filter(inactive_lever_excel != inactive_lever_raw)
 lga_allsubjects_tograph %>% 
   dplyr::filter(infusions_excel != infusions_raw)
+
+
+lga_allsubjects_tocompare <- kalivas_lga_measures %>% gsub("_(raw|excel)", "", .) %>% unique %>% 
+  map(~ lga_allsubjects_tograph %>% 
+        select(matches(.x)) %>%
+        reduce(`==`)) %>%
+  set_names(paste0("isequal_", kalivas_lga_measures %>% gsub("_(raw|excel)", "", .) %>% unique)) %>%
+  bind_cols(lga_allsubjects_tograph, .) 
+# add the following line to subset data that don't match in all of the measures 
+# %>% filter_at(vars(starts_with("isequal")), any_vars(. == FALSE))
+
 
 
 ####### progressive ratio 
