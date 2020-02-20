@@ -500,13 +500,21 @@ openfieldtask_raw_df <- lapply(openfieldtask_raw_list, function(df){
 # # to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. Find information in This information is clarified in the README files and the comments section in the Excel book."
 # # note: the raw "total" summary stats are created in QC_PLOT_RAW_VS_EXCEL.R
 # 
+
+# Open field. Rats KAL041 and KAL042 were switched in locomotor boxes during second OFT so in raw data file rat KAL041 was run in box 2 labeled “KAL042” and KAL042 was run in box 1 labeled “KAL041,” KAL056 was run in box 7  labeled “NOANIMAL” in raw data file during the second OFT because box 8 wouldn’t start.  
+# From README_MUSC Cohort 2 
+# Changed database 2/20
 openfieldtask_raw_df %>% 
   mutate(subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL041", "KAL0041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL042", "KAL041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename)& subject_id == "KAL0041", "KAL041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename)& subject_id == "NO ANIMAL", "KAL056")
          )
-
+# Open field 1, raw data file titled “cohort02_group3_OF1_raw_data.ACT” mistakenly has KAL listed for subjects in all boxes; see excel file of raw data for correct subjects. 
+cohort02_group3_OF1_raw_data_xl <- u01.importxlsx("cohort02/cohort02_group3_OF1.xlsx")[[1]] %>%
+  as.data.frame() %>% 
+  clean_names() %>% 
+  rename_at(vars(ends_with("_\\d+")), ~rep(" ", length(.)))
 
 # ############################
 # # Exp 3: TAIL FLICK
