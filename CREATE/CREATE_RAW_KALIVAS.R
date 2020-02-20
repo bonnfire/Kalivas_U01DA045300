@@ -1,6 +1,13 @@
 #############################
 # Protocol 
 #############################
+
+
+
+
+
+
+
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
 allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #295 files
 
@@ -455,35 +462,38 @@ rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c
 # ############################
 # # Exp 2: OPEN FIELD TASK
 # ############################
-# setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks/open_field_task")
-# # cohort 2 and 3 excel and ACT files
-# openfieldtask_files_raw <- list.files(path = ".", pattern = "*.ACT", full.names = T, recursive = T) 
-# 
-# read_oft <- function(x){
-#   read_oft <- fread(x, fill = T)
-#   read_oft$actfilename <- x
-#   return(read_oft)
-# }
-# 
-# openfieldtask_raw_list <- lapply(openfieldtask_files_raw, read_oft)
-# names(openfieldtask_raw_list) = openfieldtask_files_raw
-# 
-# openfieldtask_raw_list <- lapply(openfieldtask_raw_list, function(df){
-#   df <- df %>% 
-#     select(-V38) %>%   
-#     mutate(vmx = head(grep("^\\D", df$CAGE,value = T), 1)) %>% 
-#     dplyr::filter(grepl("(?=)^\\d", df$CAGE, perl = T)) %>% 
-#     mutate(CAGE = as.numeric(CAGE),
-#            DATE = as.POSIXct(strptime(DATE,format="%d-%B-%Y")),
-#            TIME = chron::chron(times=TIME),
-#            cohort = str_match(actfilename, "/(.*?)/")[,2]) %>%
-#     arrange(CAGE) %>% 
-#     select(-vmx) # Analyse's email (11/26/19) -- restrictive software for naming the file, so they change the filename immediately after the exp is run; no set protocol for how the files are named upfront bc they change them so quickly to be "more useful and descriptive"; " therefore, I would not be too concerned about the VMX filenames in general" 
-#   names(df) <- mgsub::mgsub(names(df),c("-| "), c("_")) %>%  
-#     tolower() %>% 
-#     make.unique(sep = ".")
-#   return(df)
-#   })
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks/open_field_task")
+# cohort 2-4 excel and ACT files
+openfieldtask_files_raw <- list.files(path = ".", pattern = "*.ACT", full.names = T, recursive = T)
+
+read_oft <- function(x){
+  read_oft <- fread(x, fill = T)
+  read_oft$actfilename <- x
+  return(read_oft)
+}
+
+openfieldtask_raw_list <- lapply(openfieldtask_files_raw, read_oft)
+names(openfieldtask_raw_list) = openfieldtask_files_raw
+
+openfieldtask_raw_df <- lapply(openfieldtask_raw_list, function(df){
+  df <- df %>%
+    select(-V38) %>%
+    dplyr::filter(grepl("(?=)^\\d", CAGE, perl = T)) %>%
+    mutate(CAGE = as.numeric(CAGE),
+           DATE = lubridate::dmy(strptime(DATE,format="%d-%B-%Y")),
+           TIME = chron::chron(times=TIME),
+           cohort = str_match(actfilename, "/(.*?)/")[,2],
+           cohort = str_extract(cohort, "\\d+")) %>%
+    arrange(CAGE) 
+  # %>%
+  #   select(-vmx) # Analyse's email (11/26/19) -- restrictive software for naming the file, so they change the filename immediately after the exp is run; no set protocol for how the files are named upfront bc they change them so quickly to be "more useful and descriptive"; " therefore, I would not be too concerned about the VMX filenames in general"
+  names(df) <- mgsub::mgsub(names(df),c("-| "), c("_")) %>%
+    tolower() %>%
+    make.unique(sep = ".")
+  return(df)
+  }) %>% rbindlist()
+
+
 # # naniar::vis_miss(rbindlist(openfieldtask_raw_list, fill = T)) nothing abnormal; remove V38 bc all are empty; check why some columns are 100% empty and if the kalivas lab kept these # all na cycle lines contain the C:\\ extension
 # openfieldtask_raw_df <- rbindlist(openfieldtask_raw_list, fill = T) # vis_miss only those two columns are empty now 
 # 
