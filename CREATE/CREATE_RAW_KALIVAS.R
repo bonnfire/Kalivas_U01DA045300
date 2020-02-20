@@ -543,8 +543,23 @@ cohort03_raw_data_xl <-
   subset(!is.na(subject_id) & !is.na(filename) & !is.na(cage)) %>% # remove the by subject id aggregate summary stats 
   select(-(x38:rmovno.1) ) %>%    ## remove the by cage aggregate summary stats (same values as those above but diff format)
   rename("subject_id_xl" = "subject_id")
+# openfieldtask_raw_df <- 
+openfieldtask_raw_df %>% 
+  mutate(subject_id = replace(subject_id, grepl("81_to_88_OF1_raw|89_and_90_OF1_raw|91_to_98_except96_OF1_raw|99_100_96_OF1_raw", actfilename), NA)) %>% 
+  left_join(., cohort03_raw_data_xl[, c("cage", "hactv", "totdist", "filename", "subject_id_xl")], by = c("cage", "hactv", "totdist", "filename")) %>% 
+  mutate(subject_id = coalesce(subject_id, subject_id_xl)) %>% 
+  select(-subject_id_xl) ## once we figure out why there is an extra entry, and then merge
 
+# In OF2, KAL106 was run in box 5 labeled “NOANIMAL” in raw data file because box 4 wouldn’t start.  
+openfieldtask_raw_df <- openfieldtask_raw_df %>% 
+  mutate(subject_id = replace(subject_id, grepl("cohort03_subject_101_102_105_106_OF2_raw_data.ACT", actfilename) & subject_id == "NOANIMAL" & cage == 5, "KAL106" ))
+  
+  
+# raw_data_xl_to_change <- openfieldtask_raw_df %>% 
+#   %>% 
+#   select(cage, hactv, totdist, filename, subject_id_xl)
 
+  
 # ############################
 # # Exp 3: TAIL FLICK
 # ############################
