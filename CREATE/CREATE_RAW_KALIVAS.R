@@ -504,20 +504,28 @@ openfieldtask_raw_df <- lapply(openfieldtask_raw_list, function(df){
 # Open field. Rats KAL041 and KAL042 were switched in locomotor boxes during second OFT so in raw data file rat KAL041 was run in box 2 labeled “KAL042” and KAL042 was run in box 1 labeled “KAL041,” KAL056 was run in box 7  labeled “NOANIMAL” in raw data file during the second OFT because box 8 wouldn’t start.  
 # From README_MUSC Cohort 2 
 # Changed database 2/20
-openfieldtask_raw_df %>% 
+openfieldtask_raw_df <- openfieldtask_raw_df %>% 
   mutate(subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL041", "KAL0041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL042", "KAL041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename)& subject_id == "KAL0041", "KAL041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename)& subject_id == "NO ANIMAL", "KAL056")
          )
 # Open field 1, raw data file titled “cohort02_group3_OF1_raw_data.ACT” mistakenly has KAL listed for subjects in all boxes; see excel file of raw data for correct subjects. 
-cohort02_group3_OF1_raw_data_xl <- u01.importxlsx("cohort02/cohort02_group3_OF1.xlsx")[[1]] %>%
-  as.data.frame() %>% 
-  clean_names() %>% 
-  rename_all(
-    funs(
-        stringr::str_replace_all(., '_\\d+', '')
-    ))
+cohort02_group3_OF1_raw_data_xl <-
+  u01.importxlsx("cohort02/cohort02_group3_OF1.xlsx")[[1]] %>%
+  as.data.frame() %>%
+  clean_names() %>%
+  rename_all(funs(stringr::str_replace_all(., '_\\d+', ''))) %>%
+  subset(!is.na(subject_id) & !is.na(filename) & !is.na(cage)) %>% # remove the by subject id aggregate summary stats 
+  select(-(x38:rmovno.1) ) %>%    ## remove the by cage aggregate summary stats (same values as those above but diff format)
+  rename("subject_id_xl" = "subject_id")
+
+openfieldtask_raw_df <- openfieldtask_raw_df %>% 
+  mutate(subject_id = replace(subject_id, grepl("cohort02_group3_OF1_raw_data.ACT", actfilename), NA)) %>% 
+  left_join(., cohort02_group3_OF1_raw_data_xl[, c("cage", "hactv", "totdist", "filename", "subject_id_xl")], by = c("cage", "hactv", "totdist", "filename")) %>% 
+  mutate(subject_id = coalesce(subject_id, subject_id_xl)) %>% 
+  select(-subject_id_xl)
+
     
 # ############################
 # # Exp 3: TAIL FLICK
