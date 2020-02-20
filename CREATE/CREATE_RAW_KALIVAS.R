@@ -526,6 +526,9 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
   mutate(subject_id = coalesce(subject_id, subject_id_xl)) %>% 
   select(-subject_id_xl)
 
+# Vertical beams on open field were placed too low, so any vertical activity (including rearing activity) is inaccurate.  
+openfieldtask_raw_df <- openfieldtask_raw_df %>% 
+  rename_all(funs(stringr::str_replace_all(., '(vactv|vmovno|vtime|ractv)', '\\1_vert_inaccurate'))) # changed these four based on the oft_column_descriptions that included "vert"
     
 # ############################
 # # Exp 3: TAIL FLICK
