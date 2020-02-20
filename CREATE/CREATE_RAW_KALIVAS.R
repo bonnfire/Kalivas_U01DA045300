@@ -528,8 +528,23 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
 
 # Vertical beams on open field were placed too low, so any vertical activity (including rearing activity) is inaccurate.  
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
-  rename_all(funs(stringr::str_replace_all(., '(vactv|vmovno|vtime|ractv)', '\\1_vert_inaccurate'))) # changed these four based on the oft_column_descriptions that included "vert"
-    
+  mutate_at(vars(vactv, vmovno, vtime, ractv), ~ replace(., cohort == "02", NA)) # changed these four based on the oft_column_descriptions that included "vert" ## the beams were raised for subsequent cohorts and this change is reflected in open_field_protocol_v2
+
+## Mistaken subjects for the following subjects, must also use excel files to replace
+cohort03_OFT_xl_tochange <- list.files(recursive = T, pattern = ".xlsx") %>% 
+  grep("cohort03_subject_81_to_88|cohort03_subject_89_and_90|cohort03_subject_91_to_98_except96|99_100_96", ., value = T)
+cohort03_raw_data_xl <-
+  lapply(cohort03_OFT_xl_tochange, u01.importxlsx) %>%
+  unlist(recursive = F) %>% 
+  rbindlist(fill = T) %>% 
+  as.data.frame() %>%
+  clean_names() %>%
+  rename_all(funs(stringr::str_replace_all(., '_\\d+', ''))) %>%
+  subset(!is.na(subject_id) & !is.na(filename) & !is.na(cage)) %>% # remove the by subject id aggregate summary stats 
+  select(-(x38:rmovno.1) ) %>%    ## remove the by cage aggregate summary stats (same values as those above but diff format)
+  rename("subject_id_xl" = "subject_id")
+
+
 # ############################
 # # Exp 3: TAIL FLICK
 # ############################
