@@ -500,7 +500,14 @@ openfieldtask_raw_df <- lapply(openfieldtask_raw_list, function(df){
 # # to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. Find information in This information is clarified in the README files and the comments section in the Excel book."
 # # note: the raw "total" summary stats are created in QC_PLOT_RAW_VS_EXCEL.R
 # 
-# 
+openfieldtask_raw_df %>% 
+  mutate(subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL041", "KAL0041"),
+         subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL042", "KAL041"),
+         subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename)& subject_id == "KAL0041", "KAL041"),
+         subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename)& subject_id == "NO ANIMAL", "KAL056")
+         )
+
+
 # ############################
 # # Exp 3: TAIL FLICK
 # ############################
