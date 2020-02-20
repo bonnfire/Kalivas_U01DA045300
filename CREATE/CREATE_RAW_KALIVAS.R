@@ -514,8 +514,11 @@ openfieldtask_raw_df %>%
 cohort02_group3_OF1_raw_data_xl <- u01.importxlsx("cohort02/cohort02_group3_OF1.xlsx")[[1]] %>%
   as.data.frame() %>% 
   clean_names() %>% 
-  rename_at(vars(ends_with("_\\d+")), ~rep(" ", length(.)))
-
+  rename_all(
+    funs(
+        stringr::str_replace_all(., '_\\d+', '')
+    ))
+    
 # ############################
 # # Exp 3: TAIL FLICK
 # ############################
