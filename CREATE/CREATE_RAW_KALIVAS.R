@@ -49,8 +49,6 @@ readBarray <- function(x){
   Barray$filename <- x
   return(Barray)
 } 
-##  " | grep -v '20:' | grep -v 'B:'" could have also worked but it includes 5: from the A array above it
-
 
 lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fill = T) %>% 
   dplyr::select(-c(V2, V6)) %>% 
@@ -65,25 +63,25 @@ lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fil
   ungroup() 
 lga_Barray %>% naniar::vis_miss()
 
-dim(lga_Barray)
-dim(lga_subjects)
-# the dim's don't match -- figure out why
-lga_Barray %>% 
-  group_by(filename) %>% 
-  add_count(filename) %>% 
-  merge(., lga_subjects %>% 
-          count(filename), by = "filename") %>%   
-  rename("numberofBarrays" = "n.x", "numberofsubjects" = "n.y") %>% 
-  select(numberofBarrays, numberofsubjects, filename) %>% 
-  group_by(filename) %>% 
-  slice(1) %>% 
-  dplyr::filter(numberofBarrays != numberofsubjects) 
+if(nrow(lga_Barray) == nrow(lga_subjects)){
+  lga_merge <- merge(lga_subjects, lga_Barray) %>% mutate(subjectid = ifelse(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0))))
+  print("LGA_merge object created")
+  } else {
+  lga_Barray %>% 
+    group_by(filename) %>% 
+    add_count(filename) %>% 
+    merge(., lga_subjects %>% 
+            count(filename), by = "filename") %>%   
+    rename("numberofBarrays" = "n.x", "numberofsubjects" = "n.y") %>% 
+    select(numberofBarrays, numberofsubjects, filename) %>% 
+    group_by(filename) %>% 
+    slice(1) %>% 
+    dplyr::filter(numberofBarrays != numberofsubjects) 
+  print("LGA DATA COULD NOT BE JOINED")}
 
+lga_merge %>% naniar::vis_miss() #complete cases all 1506 observations
 
-lga_merge <- merge(lga_subjects, lga_Barray) %>% mutate(subjectid = ifelse(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0))))
-lga_merge %>% naniar::vis_miss()
-
-lga_allsubjects <- left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
+lga_allsubjects <- left_join(allcohorts_df_nodupes[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
@@ -99,27 +97,22 @@ lga_allsubjects %>% naniar::vis_miss()
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
 allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date|subject|box):' ", intern = TRUE)
 
-startdate <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .)
-box <- allcohorts %>% gsub("\r", "", .)%>% grep(".*Box:", ., value = T) %>% sub(".*Box:", "", .) %>% gsub(" ", "", .)
-subject <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .)
-cohort <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character()
-experiment <- sapply(strsplit(allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T), "[_]"), "[", 4) %>% 
-  gsub("-.*", "",.) %>% 
-  gsub("day ", "", .) %>% 
-  gsub("ction3", "ction 3", .) %>% 
-  gsub("Prime test", "Prime rein", .)
-filename <- allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("MUSC_(.*?):") %>% as.data.frame() %>% 
-  select(V2) %>% unlist() %>% as.character()
+allcohorts_df <- data.frame(startdate = allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .), 
+                            subject = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .),
+                            cohort = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character(),
+                            box = allcohorts %>% gsub("\r", "", .)%>% grep(".*Box:", ., value = T) %>% sub(".*Box:", "", .) %>% gsub(" ", "", .), 
+                            experiment = sapply(strsplit(allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T), "[_]"), "[", 4) %>% 
+                              gsub("-.*", "",.) %>% 
+                              gsub("day ", "", .) %>% 
+                              gsub("ction3", "ction 3", .) %>% 
+                              gsub("Prime test", "Prime rein", .),
+                            filename = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("MUSC_(.*?):") %>% as.data.frame() %>% 
+                              select(V2) %>% unlist() %>% as.character()) %>% 
+  arrange(subject, startdate, cohort) %>% 
+  mutate(subject = str_extract(subject, "\\d+") %>% as.numeric,
+         subject = paste0("KAL", str_pad(subject, 2, "left", "0")))
 
-allcohorts_df <- data.frame(startdate = startdate, 
-                            subject = subject,
-                            cohort = cohort,
-                            box = box, 
-                            experiment = experiment,
-                            filename = filename) %>% 
-  arrange(subject, startdate, cohort)
-
-allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] 
+allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 
 
 
 # library(reshape2)
@@ -160,7 +153,6 @@ readBarray <- function(x){
   Barray$filename <- x
   return(Barray)
 } 
-
 readM_O <- function(x){
   M_O <- fread(paste0("grep -a1 --no-group-separator -En '(M|O):' ", "'", x, "'", " | grep -E '(M|O):'"), header = F, fill = T)
   M_O$filename <- x
