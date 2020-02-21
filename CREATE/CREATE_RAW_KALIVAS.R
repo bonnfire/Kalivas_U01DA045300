@@ -2,12 +2,25 @@
 # Protocol 
 #############################
 
+## use dates or confirm with them 
+# First body weight 
+# Tail flick (Before SA)
+# EPM (Before SA)
+# Open field (Before SA)
+# LGA1-12
+# PR 
+# LGA13-15 
+# Extinction prime
+# Extinction 1-3
+# Cued reinstatement 
+# Tail flick (After SA)
+# EPM (After SA)
+# Open field (After SA)
 
 
 
 
-
-
+#### 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
 allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #295 files
 
