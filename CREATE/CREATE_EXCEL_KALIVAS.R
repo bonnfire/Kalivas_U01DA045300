@@ -50,7 +50,7 @@ kalivas_cohort3_mapping <- kalivas_cohort3_mapping[-c(1:4),] %>%
 
 kalivas_allcohorts <- rbind(kalivas_cohort2_mapping, kalivas_cohort3_mapping) %>% 
   mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
-  rename("rfid" = "microchip")
+  rename("rfid" = "microchip") 
 
 
 ############### extract for raw vs excel comparison

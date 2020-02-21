@@ -64,7 +64,9 @@ lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fil
 lga_Barray %>% naniar::vis_miss()
 
 if(nrow(lga_Barray) == nrow(lga_subjects)){
-  lga_merge <- merge(lga_subjects, lga_Barray) %>% mutate(subjectid = ifelse(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0))))
+  lga_merge <- merge(lga_subjects, lga_Barray) %>% 
+    mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+           subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")))
   print("LGA_merge object created")
   } else {
   lga_Barray %>% 
@@ -81,7 +83,7 @@ if(nrow(lga_Barray) == nrow(lga_subjects)){
 
 lga_merge %>% naniar::vis_miss() #complete cases all 1506 observations
 
-lga_allsubjects <- left_join(allcohorts_df_nodupes[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
+lga_allsubjects <- left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
@@ -90,6 +92,7 @@ lga_allsubjects <- left_join(allcohorts_df_nodupes[,c("cohort_number", "sex", "r
   arrange(internal_id, startdate) %>% 
   select(-c(numseq, rownum, dob)) %>%  ## only the 80 in the mapping excel information
   mutate(session = gsub(".*day ", "", filename))
+
 lga_allsubjects %>% naniar::vis_miss()
 
 # *****************
@@ -110,7 +113,7 @@ allcohorts_df <- data.frame(startdate = allcohorts %>% gsub("\r", "", .)%>% grep
                               select(V2) %>% unlist() %>% as.character()) %>% 
   arrange(subject, startdate, cohort) %>% 
   mutate(subject = str_extract(subject, "\\d+") %>% as.numeric,
-         subject = paste0("KAL", str_pad(subject, 2, "left", "0")))
+         subject = paste0("KAL", str_pad(subject, 3, "left", "0")))
 
 allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 
 
