@@ -223,6 +223,81 @@ ex_allsubjects_tocompare <- kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) 
 
 
 
+##  Cued reinstatement
+
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
+
+kalivas_cued_allcohorts_excel_processed 
+rein_allsubjects
+
+# uniform variable session_length_hours, reinforcer, bolus_volume,ml, dose_ug_kg_infusion, reinforcement_schedule, time_out_seconds, discrete_stimulus
+## note that we are joining excel TO raw
+cuedrein_allsubjects_tograph <- left_join(rein_allsubjects, kalivas_cued_allcohorts_excel_processed[,c("internal_id", "cohort", "rfid", "sex", "inactive_lever", "active_lever", "self_administration_room", "self_administration_box", "heroin_or_saline")], by = c("labanimalid" = "internal_id", "cohort", "rfid", "sex")) ## doesn't look right because of the multiple inactive levers... and inaccurate
+names(cuedrein_allsubjects_tograph) <- mgsub::mgsub(names(cuedrein_allsubjects_tograph), c("\\.x", "\\.y"), c("_raw", "_excel")) %>% gsub(" ", "", .)
+
+kalivas_rein_measures <- names(cuedrein_allsubjects_tograph)[grepl("raw|excel", names(cuedrein_allsubjects_tograph) )] %>% sort()
+cuedrein_allsubjects_tograph <- cuedrein_allsubjects_tograph %>% 
+  mutate_at(kalivas_rein_measures, as.numeric)
+# create plots 
+
+pdf("kalivas_rein.pdf", onefile = T)
+for (i in seq(1, length(kalivas_rein_measures), 2)) {
+  g <-  cuedrein_allsubjects_tograph %>% 
+    dplyr::filter(!grepl("separate", comments)) %>% 
+    ggplot(aes_string(x = kalivas_rein_measures[i], y = kalivas_rein_measures[i+1])) + 
+    geom_point() + 
+    geom_abline(intercept = 0 , slope = 1) +
+    labs(title = paste0(kalivas_rein_measures[i], "_Raw_VS_Excel_U01_Kalivas", "\n")) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  
+  # g_cohort <-  ggplot(lga_allsubjects_tograph, aes_string(x = kalivas_lga_measures[i], y = kalivas_lga_measures[i+3])) + 
+  #   geom_point(aes(color = cohort_number)) + 
+  #   facet_grid(~ cohort_number)
+  #   labs(title = paste0(kalivas_lga_measures[i], "_Raw_VS_Excel_U01_Kalivas", "\n")) + 
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  
+  print(g)
+  # print(g_cohort)
+}
+
+dev.off()
+
+
+ex_allsubjects_tocompare <- kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) %>% unique %>% 
+  map(~ ex_allsubjects_tograph %>% 
+        select(matches(.x)) %>%
+        reduce(`==`)) %>%
+  set_names(paste0("isequal_", kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) %>% unique)) %>%
+  bind_cols(ex_allsubjects_tograph, .) 
+# add the following line to subset data that don't match in all of the measures 
+# %>% filter_at(vars(starts_with("isequal")), any_vars(. == FALSE))
+
+# pr_unverified <- list()
+# for (i in seq(1, length(kalivas_pr_measures), 2)) {
+#   pr_unverified <- pr_allsubjects_tograph %>% 
+#     dplyr::filter(kalivas_pr_measures[i] != kalivas_pr_measures[i+1])
+# }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

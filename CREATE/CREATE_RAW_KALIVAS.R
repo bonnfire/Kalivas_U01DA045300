@@ -391,18 +391,19 @@ rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c
          subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
   # left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
   left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
-  left_join(, by = "labanimalid") %>% # join comments to explain missing data
+  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
   # left_join(., allcohorts_df[, c("startdate", "filename")]) %>% # get file info
-  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")], by = "filename") %>% # get file date
-  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")], by = "filename") %>% # get file date 
+  rename("date" = "startdate") %>% 
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
   distinct() %>% 
   # arrange(cohort_number, internal_id) %>% 
   arrange(cohort, labanimalid) %>% 
   select(-c("dob")) %>%  
-  # select(cohort_number, sex, rfid, internal_id, startdate, inactive_lever, active_lever, experimentage, filename)
-  select(cohort, sex, rfid, labanimalid, startdate, inactive_lever, active_lever, experimentage, filename)
+  # select(cohort_number, sex, rfid, internal_id, date, inactive_lever, active_lever, experimentage, filename)
+  select(cohort, sex, rfid, labanimalid, date, inactive_lever, active_lever, experimentage, filename, comments, resolution)
   
 ### most of the NA are dead animals BUT check because there might be exceptions # make excel vs raw graph esp for KAL043 because there seem to be wrong data
 

@@ -17,34 +17,35 @@ u01.importxlsx <- function(xlname){
 all_excel_fnames <- list.files(full.names = T, recursive = T)
 
 # attempt to create function, but maybe we don't need to create this mapping files because WFU_Kalivas_test_df %>% sample_n(10) %>% select(cohort, labanimalid, accessid, sex, rfid) suggests that we might actually have this information from the wfu sheets
-extract_kalivas_mapping <- function(files){
+extract_kalivas_mapping <- function(files, sheet){
   data_breeder_list <-  lapply(files, function(i) {
     data_allsheets = u01.importxlsx(i)
-    data_breeder <- data_allsheets$info_from_breeder
+    # data_breeder <- data_allsheets$info_from_breeder
+    data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
     
     names(data_breeder) <- c("dames", "sires", data_breeder[2,3:25]) %>% tolower()
-    
+
     datecols <- c("dob", "dow", "shipmentdate")
     datefunction <- function(x){
       if(is.POSIXct(x) == F){
         as.POSIXct(as.numeric(x) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")
       } else x
     }
-    
-    data_breeder <- data_breeder[-c(1:4),] %>% 
-      rename("dob" =  "date_of_birth", 
-             "dow" = "date_of_wean", 
+
+    data_breeder <- data_breeder[-c(1:4),] %>%
+      rename("dob" =  "date_of_birth",
+             "dow" = "date_of_wean",
              "shipmentdate" = "date_of_ship") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
-      select(-date_of_delivery) %>% 
+      select(-date_of_delivery) %>%
       mutate_at(.vars = vars(datecols), .funs = datefunction)
-    
+
     return(data_breeder)
     
   })
   return(data_breeder_list)
 }
 
-kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames) %>% 
+kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames, "info_from_breeder") %>% 
   rbindlist() %>% 
   rename("cohort" = "cohort_number") %>% 
   mutate(cohort = gsub("MUSC_", "", cohort)) %>%
@@ -52,6 +53,9 @@ kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames) %>%
 
 
 ############### extract for raw vs excel comparison
+
+
+## create cohort 2 and 3 objects
 
 
 
@@ -193,6 +197,9 @@ extract_process_excel_expr <- function(x, y){
 kalivas_expr_allcohorts_excel_processed <- extract_process_excel_expr(kalivas_cohort2_excel, extinction_prime_test) %>% 
     rbind(extract_process_excel_expr(kalivas_cohort3_excel, extinction_prime_test))
 
+kalivas_expr_allcohorts_excel_processed <- extract_process_excel_shortened_lapply(all_excel_fnames, "extinction_prime_test") %>% rbindlist()
+
+
 # *****************
 ##  Extinction
 kalivas_ex_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_excel, extinction) %>% 
@@ -200,15 +207,50 @@ kalivas_ex_allcohorts_excel_processed <- extract_process_excel(kalivas_cohort2_e
 
 # *****************
 ##  Cued reinstatement
-kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened(kalivas_cohort2_excel, cued_reinstatement) %>% 
-  rbind(extract_process_excel_shortened(kalivas_cohort3_excel, cued_reinstatement))
+extract_process_excel_shortened_lapply <- function(files, sheet){
+         data_breeder_list <-  lapply(files, function(i) {
+           data_allsheets = u01.importxlsx(i)
+           # data_breeder <- data_allsheets$info_from_breeder
+           data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
+           
+           databegins_index <- which(data_breeder[,1] == "Microchip")
+           
+           df_values <- data_breeder[(databegins_index + 1):nrow(data_breeder),]
+           
+           make_unique = function(x, sep='_'){
+             ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+           }
+           names(df_values) <- data_breeder[databegins_index,] %>% gsub(" ", "", .) %>% tolower() %>% make_unique()
+           
+           df_values <- df_values %>%
+             dplyr::filter(!is.na(microchip)) %>% ## okay doing this bc all other data na
+             mutate(self_administration_box = self_administration_box %>% as.numeric %>% round(2) %>% as.character) 
+           
+           df_sessiondosage <- data_breeder[1:(databegins_index-1),]
 
-
-
-
-
-
-
+           df_sessiondosage <- df_sessiondosage %>%
+             select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+             t() %>%
+             cbind(rownames(.), ., row.names = NULL) %>%
+             as.data.frame(row.names = NULL) %>%
+             mutate_all(str_trim) %>%
+             magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>%
+             dplyr::filter(row_number() != 1) %>%
+             mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01"))
+           
+           
+           df <- cbind(df_values, df_sessiondosage) %>% 
+             rename("cohort" = "cohort_number") %>% 
+             mutate(cohort = gsub("MUSC_", "", cohort)) %>%
+             rename("rfid" = "microchip")
+           return(df)
+           
+         })
+         return(data_breeder_list)
+       }
+       
+kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened_lapply(all_excel_fnames, "cued_reinstatement") %>% rbindlist()
+# names(kalivas_cued_allcohorts_excel_processed) <- paste0(names(kalivas_cued_allcohorts_excel_processed), "_xl")
 
 
 
