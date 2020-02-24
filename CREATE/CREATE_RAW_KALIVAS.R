@@ -357,38 +357,53 @@ rein_subjects <- lapply(allcohorts_rein_fnames, readsubject) %>%
   arrange(filename, numseq)
 rein_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
 
-read_WX <- function(x){
+rein_W <- lapply(allcohorts_rein_fnames, function(x){
   WX <- fread(paste0("grep -iEn '^(W|X):' ", "'", x, "'"), header = F, fill = T)
   WX$filename <- x 
   return(WX)
-}
-
-rein_WX <- lapply(allcohorts_rein_fnames, read_WX) %>% rbindlist(fill = T) %>%
+}) %>% rbindlist(fill = T) %>%
   tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
   rename("value" = "V2") %>%
   mutate(rownum = as.numeric(rownum)) %>% 
-  arrange(filename, rownum)   
-rein_W <- rein_WX %>% 
+  arrange(filename, rownum) %>% 
   dplyr::filter(var == "W") %>% 
   arrange(filename, rownum) %>% 
   cbind(rein_subjects$subjectid, .) %>% 
   rename("subjectid" = "rein_subjects$subjectid",
          "inactive_lever" = "value") 
-rein_X <- rein_WX %>% 
+
+rein_X <- lapply(allcohorts_rein_fnames, function(x){
+  WX <- fread(paste0("grep -iEn '^(W|X):' ", "'", x, "'"), header = F, fill = T)
+  WX$filename <- x 
+  return(WX)
+}) %>% rbindlist(fill = T) %>%
+  tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
+  rename("value" = "V2") %>%
+  mutate(rownum = as.numeric(rownum)) %>% 
+  arrange(filename, rownum) %>% 
   dplyr::filter(var == "X") %>% 
   cbind(rein_subjects$subjectid, .) %>% 
   rename("subjectid" = "rein_subjects$subjectid",
          "active_lever" = "value")
+
 rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c("subjectid", "active_lever", "filename")]) %>% 
-  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
+  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
+  # left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+  left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
+  left_join(, by = "labanimalid") %>% # join comments to explain missing data
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
+  # left_join(., allcohorts_df[, c("startdate", "filename")]) %>% # get file info
+  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")], by = "filename") %>% # get file date
   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
          experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
   distinct() %>% 
-  arrange(cohort_number, internal_id) %>% 
+  # arrange(cohort_number, internal_id) %>% 
+  arrange(cohort, labanimalid) %>% 
   select(-c("dob")) %>%  
-  select(cohort_number, sex, rfid, internal_id, startdate, inactive_lever, active_lever, experimentage, filename) 
+  # select(cohort_number, sex, rfid, internal_id, startdate, inactive_lever, active_lever, experimentage, filename)
+  select(cohort, sex, rfid, labanimalid, startdate, inactive_lever, active_lever, experimentage, filename)
+  
 ### most of the NA are dead animals BUT check because there might be exceptions # make excel vs raw graph esp for KAL043 because there seem to be wrong data
 
 
