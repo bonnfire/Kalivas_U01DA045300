@@ -138,7 +138,25 @@ lga_allsubjects_tograph %>%
 ############################
 pdf("plot_kalivas_openfieldtask_excel", onefile = T)
 
-kalivas_oft_allcohorts_excel_processed
+kalivas_oft_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
+kalivas_oft_allcohorts_excel_processed_tograph <- kalivas_oft_allcohorts_excel_processed %>% 
+  mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric)
+# check if resolution is just ignore or na (pass)
+
+
+pdf("plot_kalivas_oft_excel.pdf", onefile = T)
+for (i in 1:(length(kalivas_oft_measures))){
+  
+  g_cohort <- kalivas_oft_allcohorts_excel_processed_tograph %>% 
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
+    ggplot(aes(x = session, fill = heroin_or_saline)) + 
+    geom_boxplot(aes_string(y = kalivas_oft_measures[i])) + 
+    facet_grid(~ cohort_number)
+  
+  print(g_cohort)
+}
+
+dev.off()
 
 ############################
 # Exp 3: TAIL FLICK
@@ -159,21 +177,6 @@ for (i in 1:(length(kalivas_tf_measures))){
     ggplot(aes(x = session, fill = heroin_or_saline)) + 
     geom_boxplot(aes_string(y = kalivas_tf_measures[i])) + 
     facet_grid(~ cohort_number)
-  
-  
-  # 
-  # g_cohort <-kalivas_tf_allcohorts_excel_processed_tograph %>% 
-  #   dplyr::filter(active_lever_excel == active_lever_raw,
-  #                 inactive_lever_excel == inactive_lever_raw,
-  #                 infusions_excel == infusions_raw) %>% 
-  #   dplyr::filter(resolution != "FLAG_EXPERIMENT"|is.na(resolution) ) %>% 
-  #   mutate(session = as.numeric(session) %>% as.factor) %>% 
-  #   ggplot(aes(x = session, group = session)) + 
-  #   geom_boxplot(aes_string(y = kalivas_tf_measures[i])) + 
-  #   facet_grid(~ cohort_number) +
-  #   labs(title = paste0(gsub("_(?!excel)", " ", gsub("_excel", "", kalivas_tf_measures[i]), perl = T), "_Excel_Data_U01_Kalivas", "\n", "By cohort"),
-  #        y = gsub("_(?!excel)", " ", gsub("_excel", "", kalivas_tf_measures[i]), perl = T)) + 
-  #   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 
   print(g_cohort)
 }
