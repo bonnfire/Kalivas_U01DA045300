@@ -292,6 +292,24 @@ expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>
   select(cohort_number, sex, rfid, internal_id, startdate, everything())
 
 
+ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
+  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
+  left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
+  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
+  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")], by = "filename") %>% # get file date 
+  rename("date" = "startdate") %>% 
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (date - dob) %>% as.numeric %>% round,
+         session = gsub(".*Extinction ", "", filename)) %>%
+  distinct() %>% 
+  arrange(cohort, labanimalid) %>% 
+  select(-c("dob")) %>%  
+  select(cohort, sex, rfid, labanimalid, date, inactive_lever, active_lever, experimentage, filename, comments, resolution)
+
+
+
 # *****************
 ##  Extinction
 allcohorts_ex_fnames <- grep("extinction", allcohorts_allexp_filenames, ignore.case = T, value = T) #72 files
@@ -327,20 +345,37 @@ ex_X <- ex_WX %>%
   cbind(ex_subjects$subjectid, .) %>% 
   rename("subjectid" = "ex_subjects$subjectid",
          "active_lever" = "value")
-ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>% 
-  mutate(subjectid = as.character(subjectid),
-         subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
-  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
-  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (startdate - dob) %>% as.numeric %>% round,
-         session = gsub(".*Extinction ", "", filename)) %>% 
+ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
+  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
+  left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
+  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
+  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")], by = "filename") %>% # get file date 
+  rename("date" = "startdate") %>% 
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (date - dob) %>% as.numeric %>% round,
+         session = gsub(".*Extinction ", "", filename)) %>%
   distinct() %>% 
-  arrange(cohort_number, internal_id) %>% 
+  arrange(cohort, labanimalid) %>% 
   select(-c("dob")) %>%  
-  select(cohort_number, sex, rfid, internal_id, session, startdate, inactive_lever, active_lever, experimentage, filename) 
-### most of the NA are dead animals BUT check because there might be exceptions
+  select(cohort, sex, rfid, labanimalid, date, inactive_lever, active_lever, experimentage, filename, comments, resolution)
+
+
+
+#   mutate(subjectid = as.character(subjectid),
+#          subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
+#   left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+#   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+#   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
+#   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+#          experimentage = (startdate - dob) %>% as.numeric %>% round,
+#          session = gsub(".*Extinction ", "", filename)) %>% 
+#   distinct() %>% 
+#   arrange(cohort_number, internal_id) %>% 
+#   select(-c("dob")) %>%  
+#   select(cohort_number, sex, rfid, internal_id, session, startdate, inactive_lever, active_lever, experimentage, filename) 
+# ### most of the NA are dead animals BUT check because there might be exceptions
 
 
 # *****************

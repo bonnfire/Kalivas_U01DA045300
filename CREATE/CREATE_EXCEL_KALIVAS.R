@@ -294,7 +294,7 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
       mutate_at(vars(matches("date")), openxlsx::convertToDateTime, origin = "1900-01-01") %>% 
       mutate_at(vars(matches("date")), as.character) %>% 
       gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline) %>%
-      extract(var, c("measurement", "session"), "(\\D+_?\\d?)_(\\d)") %>% 
+      extract(var, c("measurement", "session"), "(.*)_(\\d)") %>% 
       mutate(session = ifelse(session == 1, "before_SA", "after_SA"))  %>%
       spread(measurement, value) %>% 
       mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
@@ -311,23 +311,3 @@ kalivas_oft_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures
 # Exp 3: TAIL FLICK
 ############################
 kalivas_tf_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "tail_flick") %>% rbindlist()
-
-
-data_allsheets = u01.importxlsx(i)
-data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
-
-datavaluesbegins_index <- which(data_breeder[, 1] == "Microchip")
-databegins_index <- which(data_breeder[, 8] == "Date")
-
-names(data_breeder)[1:8] <- data_breeder[datavaluesbegins_index, 1:8] %>% unlist() %>% as.character()
-names(data_breeder)[8:ncol(data_breeder)] <- data_breeder[databegins_index, 8:ncol(data_breeder)] %>% unlist() %>% as.character()
-make_unique = function(x, sep='_'){
-  ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
-}
-
-
-# ############################
-# # Exp 4: LONG ACCESS
-# ############################
-# longaccess_cohort2 <- kalivas_cohort2_excel[[6]] #27 rfid
-# longaccess_cohort3 <- kalivas_cohort3_excel[[6]] #33 rfid
