@@ -268,11 +268,21 @@ kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened_lappl
 
 extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for use on before self admin and after self admin
   data_breeder_list <-  lapply(files, function(i) {
+    
+    u01.importxlsx <- function(xlname){
+      path_sheetnames <- excel_sheets(xlname)
+      df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname, col_names = F) ## note the difference here, bc we don't want headers 
+      names(df) <- path_sheetnames
+      return(df)
+    }
+    
     data_allsheets = u01.importxlsx(i)
     data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
     
+    datavaluesbegins_index <- which(data_breeder[, 1] == "Microchip")
     databegins_index <- which(data_breeder[, 8] == "Date")
     
+    names(data_breeder)[1:8] <- data_breeder[datavaluesbegins_index, 1:8] %>% unlist() %>% as.character()
     names(data_breeder)[8:ncol(data_breeder)] <- data_breeder[databegins_index, 8:ncol(data_breeder)] %>% unlist() %>% as.character()
     make_unique = function(x, sep='_'){
       ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
@@ -297,26 +307,25 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
 
 kalivas_oft_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "open_field") %>% rbindlist()
 
+############################
+# Exp 3: TAIL FLICK
+############################
+kalivas_tf_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "tail_flick") %>% rbindlist()
 
 
+data_allsheets = u01.importxlsx(i)
+data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
+
+datavaluesbegins_index <- which(data_breeder[, 1] == "Microchip")
+databegins_index <- which(data_breeder[, 8] == "Date")
+
+names(data_breeder)[1:8] <- data_breeder[datavaluesbegins_index, 1:8] %>% unlist() %>% as.character()
+names(data_breeder)[8:ncol(data_breeder)] <- data_breeder[databegins_index, 8:ncol(data_breeder)] %>% unlist() %>% as.character()
+make_unique = function(x, sep='_'){
+  ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-# ############################
-# # Exp 3: TAIL FLICK
-# ############################
-# 
-# 
 # ############################
 # # Exp 4: LONG ACCESS
 # ############################
