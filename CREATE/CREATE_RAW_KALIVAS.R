@@ -27,6 +27,17 @@ allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #295 fi
 
 ## in addiction tasks 
 
+
+
+#####  LONG ACCESS
+
+# all infusions are mg/kg/infusion
+# behavioral testing occurred 4 days/wk (sun-thurs) from 19:00 to 7:00 EST
+# syringe refill calculation based on the most recent weight from the animal 
+# active lever = always right (20ug/kg/infusion; infusion volume is 100 ul; fixed ratio 1)
+
+
+## cohort xx : after the session ended, rats received 0.05 ml of a mixture of Heparin and 1 mg/ml Gentamicin Sulfate (antibiotic) to maintain catheter patency and animal health
 allcohorts_longaccess_fnames <- grep("long", allcohorts_allexp_filenames, ignore.case = T, value = T)
 # Extract subject information
 readsubject <- function(x){
@@ -135,6 +146,14 @@ allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_
 
 
 ##  PR_test
+
+# behavioral testing occurred Sunday following 3 weeks of self admin training; 7 est   
+# mg/kg/infusion
+# active lever = always right (20 ug/kg/infusion; infusion volume is 100 ul); inactive lever = always left
+# terminate sessions after 12 hours, or after 1 hour of the next ratio not being achieveed  (seems like most can use start or end date bc the sessions are generally only a few hours long)
+
+# starting cohort xx, immediately after session ended, 
+
 allcohorts_pr_fnames <- grep("progressive", allcohorts_allexp_filenames, ignore.case = T, value = T) #13 files
 
 # Extract subject information
@@ -227,6 +246,15 @@ pr_allsubjects <- merge(pr_O_vals[c("pr_step", "subjectid")], pr_M_vals[c("total
 
 # *****************
 ##  Extinction_prime_test (Is it primed reinstatement?)
+
+
+# the day after 3 days of heroin re-establishment (lga 13-15) from 1900 to 1est
+# no syringes
+# sessions terminate after 6 hours
+# active lever (right lever) no longer results in heroin infusion, presentation of cue light, or the time out period
+# first 4 hours is extinction training; 2 hours left = receive injection of 0.25 mg/kg of heroin subcutaneous (heroin prime) XX ASKING OKSANA IS THIS SEEMS STANDARD
+# assess how the drug being "on board" affects drug-seeking behavior
+
 allcohorts_expr_fnames <- grep("Primed reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #72 files
 
 
@@ -314,6 +342,12 @@ ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subj
 
 # *****************
 ##  Extinction
+
+# start the day after prime reinstatement test; occurs for 6 straight days from 1900 to 2100est (friday-wednesday)
+# syringes were not needed 
+# food, water bottle, and metal toy were not placed in cage
+# session runs for 2 hours
+
 allcohorts_ex_fnames <- grep("extinction", allcohorts_allexp_filenames, ignore.case = T, value = T) #72 files
 
 # Extract subject information
@@ -382,6 +416,18 @@ ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subj
 
 # *****************
 ##  Cued reinstatement
+
+# occured the day after the last extinction training session (thursday) 
+# sessions terminated after 2 hours
+# *** XX typo in the time, should be 
+# example from cohort 2 -- 
+# Start Time: 18:09:56
+# End Time: 20:47:26
+# again, lack of food, water, and toy
+# instead of heroin; presented with cue light and tone (5 sec) and house light off (20 sec)
+# objective is to assess the conditioned reinforcing properties of cue light and tone that was paired with the heroin infusion during self admin training 
+
+
 allcohorts_rein_fnames <- grep("cued reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #12 files
 
 # Extract subject information
