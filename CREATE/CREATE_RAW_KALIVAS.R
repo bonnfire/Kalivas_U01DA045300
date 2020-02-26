@@ -3,11 +3,12 @@
 #############################
 
 ## use dates or confirm with them 
+
 # First body weight 
 # Tail flick (Before SA)
 # EPM (Before SA)
 # Open field (Before SA)
-# LGA1-12
+# LGA1-12 # use end date (12 hours sessions)
 # PR 
 # LGA13-15 
 # Extinction prime
@@ -98,9 +99,9 @@ lga_allsubjects %>% naniar::vis_miss()
 # *****************
 # create missingness table for kalivas team
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(start date|subject|box):' ", intern = TRUE)
+allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(end date|subject|box):' ", intern = TRUE)
 
-allcohorts_df <- data.frame(startdate = allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .), 
+allcohorts_df <- data.frame(enddate = allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .), 
                             subject = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .),
                             cohort = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character(),
                             box = allcohorts %>% gsub("\r", "", .)%>% grep(".*Box:", ., value = T) %>% sub(".*Box:", "", .) %>% gsub(" ", "", .), 
@@ -111,9 +112,10 @@ allcohorts_df <- data.frame(startdate = allcohorts %>% gsub("\r", "", .)%>% grep
                               gsub("Prime test", "Prime rein", .),
                             filename = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("MUSC_(.*?):") %>% as.data.frame() %>% 
                               select(V2) %>% unlist() %>% as.character()) %>% 
-  arrange(subject, startdate, cohort) %>% 
+  arrange(subject, enddate, cohort) %>% 
   mutate(subject = str_extract(subject, "\\d+") %>% as.numeric,
-         subject = paste0("KAL", str_pad(subject, 3, "left", "0")))
+         subject = paste0("KAL", str_pad(subject, 3, "left", "0"))) %>% 
+  rename("date" = "enddate")
 
 allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 
 
