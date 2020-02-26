@@ -52,6 +52,48 @@ kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames, "info_from_breede
   rename("rfid" = "microchip") 
 
 
+### PICK UP HERE
+
+
+
+extract_kalivas_weights <- function(files, sheet){
+  data_weight_list <-  lapply(files, function(i) {
+    data_allsheets = u01.importxlsx(i)
+    data_weight <- data_allsheets[[sheet]] # made to extract any of the sheets
+    
+    names(data_weight) <- c(data_weight[1, 1:5], data_weight[2, 6:ncol(data_weight)]) %>% tolower()
+    
+    # datecols <- c("dob", "dow", "shipmentdate")
+    # datefunction <- function(x){
+    #   if(is.POSIXct(x) == F){
+    #     as.POSIXct(as.numeric(x) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d")
+    #   } else x
+    # }
+    # 
+    
+    data_weight <- data_weight[-c(1:2),] %>%
+      gather(-microchip, )
+      rename("dob" =  "date_of_birth",
+             "dow" = "date_of_wean",
+             "shipmentdate" = "date_of_ship") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
+      select(-date_of_delivery) %>%
+      mutate_at(.vars = vars(datecols), .funs = datefunction)
+    
+    return(data_weight)
+    
+  })
+  return(data_weight_list)
+}
+
+
+kalivas_weights_xl <- extract_kalivas_weights(all_excel_fnames, "body_weights") %>% 
+  rbindlist() %>% 
+  rename("cohort" = "cohort_number") %>% 
+  mutate(cohort = gsub("MUSC_", "", cohort)) %>%
+  rename("rfid" = "microchip") 
+
+
+
 ############### extract for raw vs excel comparison
 
 
