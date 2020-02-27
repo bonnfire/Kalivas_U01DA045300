@@ -542,7 +542,7 @@ rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c
 # ############################
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks/open_field_task")
 # cohort 2-4 excel and ACT files
-openfieldtask_files_raw <- list.files(path = ".", pattern = "*.ACT", full.names = T, recursive = T)
+openfieldtask_files_raw <- list.files(path = ".", pattern = "*.ACT", full.names = T, recursive = T) #38 files
 
 read_oft <- function(x){
   read_oft <- fread(x, fill = T)
@@ -551,7 +551,7 @@ read_oft <- function(x){
 }
 
 openfieldtask_raw_list <- lapply(openfieldtask_files_raw, read_oft)
-names(openfieldtask_raw_list) = openfieldtask_files_raw
+names(openfieldtask_raw_list) <- openfieldtask_files_raw
 
 openfieldtask_raw_df <- lapply(openfieldtask_raw_list, function(df){
   df <- df %>%
@@ -571,17 +571,14 @@ openfieldtask_raw_df <- lapply(openfieldtask_raw_list, function(df){
   return(df)
   }) %>% rbindlist()
 
-
-# # naniar::vis_miss(rbindlist(openfieldtask_raw_list, fill = T)) nothing abnormal; remove V38 bc all are empty; check why some columns are 100% empty and if the kalivas lab kept these # all na cycle lines contain the C:\\ extension
-# openfieldtask_raw_df <- rbindlist(openfieldtask_raw_list, fill = T) # vis_miss only those two columns are empty now 
-# 
-# # to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. Find information in This information is clarified in the README files and the comments section in the Excel book."
 # # note: the raw "total" summary stats are created in QC_PLOT_RAW_VS_EXCEL.R
-# 
+# # to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. Find information in This information is clarified in the README files and the comments section in the Excel book."
 
-# Open field. Rats KAL041 and KAL042 were switched in locomotor boxes during second OFT so in raw data file rat KAL041 was run in box 2 labeled “KAL042” and KAL042 was run in box 1 labeled “KAL041,” KAL056 was run in box 7  labeled “NOANIMAL” in raw data file during the second OFT because box 8 wouldn’t start.  
+
+# Making README changes for each cohort
 # From README_MUSC Cohort 2 
 # Changed database 2/20
+# Open field. Rats KAL041 and KAL042 were switched in locomotor boxes during second OFT so in raw data file rat KAL041 was run in box 2 labeled “KAL042” and KAL042 was run in box 1 labeled “KAL041,” KAL056 was run in box 7  labeled “NOANIMAL” in raw data file during the second OFT because box 8 wouldn’t start.  
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
   mutate(subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL041", "KAL0041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL042", "KAL041"),
@@ -589,13 +586,19 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename)& subject_id == "NO ANIMAL", "KAL056")
          )
 # Open field 1, raw data file titled “cohort02_group3_OF1_raw_data.ACT” mistakenly has KAL listed for subjects in all boxes; see excel file of raw data for correct subjects. 
+u01.importxlsx_cT <- function(xlname){
+  path_sheetnames <- excel_sheets(xlname)
+  df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname, col_names = T) ## note the difference here, bc we don't want headers 
+  names(df) <- path_sheetnames
+  return(df)
+}
 cohort02_group3_OF1_raw_data_xl <-
-  u01.importxlsx("cohort02/cohort02_group3_OF1.xlsx")[[1]] %>%
-  as.data.frame() %>%
-  clean_names() %>%
+  u01.importxlsx_cT("cohort02/cohort02_group3_OF1.xlsx")[[1]] %>%
+  as.data.frame() %>%   
+  clean_names() %>% 
   rename_all(funs(stringr::str_replace_all(., '_\\d+', ''))) %>%
   subset(!is.na(subject_id) & !is.na(filename) & !is.na(cage)) %>% # remove the by subject id aggregate summary stats 
-  select(-(x38:rmovno.1) ) %>%    ## remove the by cage aggregate summary stats (same values as those above but diff format)
+  select(-(x38:rmovno.1) ) %>%  ## remove the by cage aggregate summary stats (same values as those above but diff formats
   rename("subject_id_xl" = "subject_id")
 
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
@@ -612,7 +615,7 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
 cohort03_OFT_xl_tochange <- list.files(recursive = T, pattern = ".xlsx") %>% 
   grep("cohort03_subject_81_to_88|cohort03_subject_89_and_90|cohort03_subject_91_to_98_except96|99_100_96", ., value = T)
 cohort03_raw_data_xl <-
-  lapply(cohort03_OFT_xl_tochange, u01.importxlsx) %>%
+  lapply(cohort03_OFT_xl_tochange, u01.importxlsx_cT) %>%
   unlist(recursive = F) %>% 
   rbindlist(fill = T) %>% 
   as.data.frame() %>%
@@ -621,21 +624,16 @@ cohort03_raw_data_xl <-
   subset(!is.na(subject_id) & !is.na(filename) & !is.na(cage)) %>% # remove the by subject id aggregate summary stats 
   select(-(x38:rmovno.1) ) %>%    ## remove the by cage aggregate summary stats (same values as those above but diff format)
   rename("subject_id_xl" = "subject_id")
-# openfieldtask_raw_df <- 
-openfieldtask_raw_df %>% 
+openfieldtask_raw_df <- openfieldtask_raw_df %>%
   mutate(subject_id = replace(subject_id, grepl("81_to_88_OF1_raw|89_and_90_OF1_raw|91_to_98_except96_OF1_raw|99_100_96_OF1_raw", actfilename), NA)) %>% 
   left_join(., cohort03_raw_data_xl[, c("cage", "hactv", "totdist", "filename", "subject_id_xl")], by = c("cage", "hactv", "totdist", "filename")) %>% 
   mutate(subject_id = coalesce(subject_id, subject_id_xl)) %>% 
-  select(-subject_id_xl) ## once we figure out why there is an extra entry, and then merge
+  select(-subject_id_xl) %>% distinct() ## once we figure out why there is an extra entry, and then merge (distinct resolved it; original dimension is restore)
 
 # In OF2, KAL106 was run in box 5 labeled “NOANIMAL” in raw data file because box 4 wouldn’t start.  
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
   mutate(subject_id = replace(subject_id, grepl("cohort03_subject_101_102_105_106_OF2_raw_data.ACT", actfilename) & subject_id == "NOANIMAL" & cage == 5, "KAL106" ))
   
-  
-# raw_data_xl_to_change <- openfieldtask_raw_df %>% 
-#   %>% 
-#   select(cage, hactv, totdist, filename, subject_id_xl)
 
   
 # ############################
