@@ -312,11 +312,31 @@ ex_allsubjects_tocompare <- kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) 
 ############################
 # Exp 2: OPEN FIELD TASK
 ############################
-# combine the data
-# XX temporarily add the subject_id
-openfieldtask_excel_df_data[which(is.na(openfieldtask_excel_df_data$subject_id)),]$subject_id <- "KAL056"
 
-kalivas_oft_graph_merge <- left_join(openfieldtask_excel_df_data, openfieldtask_raw_df[,-c("actfilename", "vmx")], by = c("subject_id", "sample", "cage","date","time"))
+## compare the total values by grouping by actfile and by cage
+openfieldtask_excel_df_total_forcompare <- openfieldtask_excel_df_total %>% 
+  rename("actfilename" = "actfile")
+names(openfieldtask_excel_df_total_forcompare) <- gsub("\\.\\d", "", names(openfieldtask_excel_df_total_forcompare))
+openfieldtask_raw_df_total <- openfieldtask_raw_df %>% group_by(actfilename, cage, date, time) %>%
+  summarise_at(c("totdist", "movtime", "strno", "ctrtime","rmovno"), sum) %>% 
+  ungroup() %>% 
+  select(-c(date, time)) %>% 
+  mutate(actfilename = str_match(actfilename, "/.*/(.*?)_raw*.")[,2])
+openfieldtask_excel_df_total_forcompare
+openfieldtask_raw_df_total
+
+# openfieldtask_raw_df_total has 188 observations vs 181 from excel
+kalivas_oft_total_compare <- left_join(openfieldtask_raw_df_total, openfieldtask_excel_df_total_forcompare, by = c("actfilename", "cage"))
+kalivas_oft_total_compare %>% 
+  dplyr::filter(is.na(totdist.excel))
+names(kalivas_oft_total_compare) <- mgsub::mgsub(names(kalivas_oft_total_compare), c("\\.x", "\\.y"), c("\\.raw", "\\.excel"))
+
+
+openfieldtask_raw_df
+
+# combine the data
+
+kalivas_oft_graph_merge <- left_join(kalivas_oft_allcohorts_excel_processed, openfieldtask_raw_df[,-c("actfilename", "vmx")], by = c("subject_id", "sample", "cage","date","time"))
 # note dim differences openfieldtask_excel_df_data 2053, raw 2147
 # use eeptools::isid(openfieldtask_excel_df_data,  c("subject_id", "sample", "cage","date","time")) to find unique identifiers 
 # verified TRUE FOR  eeptools::isid(openfieldtask_excel_df_data, c("subject_id", "sample", "cage","date","time"))
@@ -357,24 +377,4 @@ kalivas_oft_noraw <- kalivas_oft_graph_merge %>%
 
 ## send to kalivas lab
 writexl::write_xlsx(kalivas_oft_noraw, "oft_noraw.xlsx") ## clarified on 11/26-- will wait for readme and excel files (before thxgi, xmas) # to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. Find information in This information is clarified in the README files and the comments section in the Excel book."
-
-
-
-## compare the total values by grouping by actfile and by cage
-openfieldtask_excel_df_total_forcompare <- openfieldtask_excel_df_total %>% 
-  rename("actfilename" = "actfile")
-names(openfieldtask_excel_df_total_forcompare) <- gsub("\\.\\d", "", names(openfieldtask_excel_df_total_forcompare))
-openfieldtask_raw_df_total <- openfieldtask_raw_df %>% group_by(actfilename, cage, date, time) %>%
-  summarise_at(c("totdist", "movtime", "strno", "ctrtime","rmovno"), sum) %>% 
-  ungroup() %>% 
-  select(-c(date, time)) %>% 
-  mutate(actfilename = str_match(actfilename, "/.*/(.*?)_raw*.")[,2])
-openfieldtask_excel_df_total_forcompare
-openfieldtask_raw_df_total
-
-# openfieldtask_raw_df_total has 188 observations vs 181 from excel
-kalivas_oft_total_compare <- left_join(openfieldtask_raw_df_total, openfieldtask_excel_df_total_forcompare, by = c("actfilename", "cage"))
-kalivas_oft_total_compare %>% 
-  dplyr::filter(is.na(totdist.excel))
-names(kalivas_oft_total_compare) <- mgsub::mgsub(names(kalivas_oft_total_compare), c("\\.x", "\\.y"), c("\\.raw", "\\.excel"))
 

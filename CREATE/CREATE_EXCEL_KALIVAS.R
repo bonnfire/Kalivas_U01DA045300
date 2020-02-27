@@ -304,6 +304,7 @@ kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened_lappl
 # Exp 2: OPEN FIELD TASK
 ############################
 
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
 
 extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for use on before self admin and after self admin
   data_breeder_list <-  lapply(files, function(i) {
@@ -344,7 +345,8 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
   return(data_breeder_list)
 }
 
-kalivas_oft_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "open_field") %>% rbindlist()
+kalivas_oft_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "open_field") %>% rbindlist() %>% 
+  mutate_at(vars(one_of("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")), as.numeric)
 
 ############################
 # Exp 3: TAIL FLICK
