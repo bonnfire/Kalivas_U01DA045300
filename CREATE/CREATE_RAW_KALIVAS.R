@@ -584,6 +584,9 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL0041", "KAL042"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "NO ANIMAL", "KAL056")
          )
+
+# KAL056 IS ASSIGNED BC THE BOX 8 FROM ACTFILENAME './cohort02/cohort02_group5_OF2_raw_data.ACT' WAS NOT WORKING
+
 # Open field 1, raw data file titled “cohort02_group3_OF1_raw_data.ACT” mistakenly has KAL listed for subjects in all boxes; see excel file of raw data for correct subjects. 
 u01.importxlsx_cT <- function(xlname){
   path_sheetnames <- excel_sheets(xlname)
@@ -610,7 +613,15 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
   mutate_at(vars(vactv, vmovno, vtime, ractv), ~ replace(., cohort == "02", NA)) # changed these four based on the oft_column_descriptions that included "vert" ## the beams were raised for subsequent cohorts and this change is reflected in open_field_protocol_v2
 
+
+# KAL056 was run in box 7  labeled “NOANIMAL” in raw data file during the second OFT because box 8 wouldn’t start. 
+openfieldtask_raw_df <- openfieldtask_raw_df %>% 
+  mutate(subject_id = replace(subject_id, grepl("C2Group2OF2", filename) & subject_id == "NO ANIMAL" & cage == 7, "KAL056"))
+
+
 ## Mistaken subjects for the following subjects, must also use excel files to replace
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks/open_field_task")
+
 cohort03_OFT_xl_tochange <- list.files(recursive = T, pattern = ".xlsx") %>% 
   grep("cohort03_subject_81_to_88|cohort03_subject_89_and_90|cohort03_subject_91_to_98_except96|99_100_96", ., value = T)
 cohort03_raw_data_xl <-
@@ -631,7 +642,8 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
 
 # In OF2, KAL106 was run in box 5 labeled “NOANIMAL” in raw data file because box 4 wouldn’t start.  
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
-  mutate(subject_id = replace(subject_id, grepl("cohort03_subject_101_102_105_106_OF2_raw_data.ACT", actfilename) & subject_id == "NOANIMAL" & cage == 5, "KAL106" ))
+  mutate(subject_id = replace(subject_id, grepl("cohort03_subject_101_102_105_106_OF2_raw_data.ACT", actfilename) & subject_id == "NOANIMAL" & cage == 5, "KAL106" ),
+         subject_id = replace(subject_id, grepl("cohort03_subject_91_to_98_except96_OF1_raw_data.ACT", actfilename) & is.na(subject_id) & cage == 6, "KAL096" )) ## assigning despite NA (NOT CONFIRMED WITH KALIVAS TEAM)
   
 
 # # note: the raw "total" summary stats are created in QC_PLOT_RAW_VS_EXCEL.R
@@ -643,12 +655,20 @@ openfieldtask_raw_df_total <- openfieldtask_raw_df %>% group_by(subject_id, coho
          "number_of_sterotypies" = "strno", 
          "total_cm_traveled" = "totdist", 
          "total_time_traveled_seconds" = "movtime") %>% 
-  arrange(subject_id, time) %>% 
+  arrange(subject_id, date, time) %>% 
   mutate(subject_id = toupper(subject_id)) %>% 
   rename("labanimalid" = "subject_id") %>% 
-  subset(rowSums(.[grep("_", names(.))], na.rm = T) != 0)  ## 82 cases were sum == 0 in cohort2-4
+  subset(rowSums(.[grep("_", names(.))], na.rm = T) != 0) %>%  ## 82 cases were sum == 0 in cohort2-4
+  group_by(labanimalid) %>% 
+  mutate(session = ifelse(dplyr::row_number(labanimalid) == 1, "before_SA", "after_SA")) %>% 
+  ungroup()
   
-openfieldtask_raw_df_total %>% subset(labanimalid == "NO ANIMAL"|labanimalid == "NOANIMAL"|labanimalid == "KAL042")
+openfieldtask_raw_df_total %>% subset(!grepl("KAL\\d+", labanimalid))
+# openfieldtask_raw_df_total %>% add_count(labanimalid) %>% subset(n == 2) %>% distinct(labanimalid, cohort) %>% select(cohort) %>% table()
+
+
+
+
 # used to be relevant here # %>% mutate(actfilename = str_match(actfilename, "/.*/(.*?)_raw*.")[,2])
 ## note this: could be because of diff cohorts
 openfieldtask_raw_df_total %>% select(subject_id) %>% table()

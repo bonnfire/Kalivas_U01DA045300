@@ -1,3 +1,5 @@
+
+
 library(knitr)
 
 ## QC PLOTS FOR EXCEL AND FOR RAW
@@ -136,6 +138,7 @@ lga_allsubjects_tograph %>%
 ############################
 # Exp 2: OPEN FIELD TASK
 ############################
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
 pdf("plot_kalivas_openfieldtask_excel", onefile = T)
 
 kalivas_oft_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
@@ -157,6 +160,39 @@ for (i in 1:(length(kalivas_oft_measures))){
 }
 
 dev.off()
+
+
+
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
+
+kalivas_oft_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
+kalivas_oft_raw_tograph <- openfieldtask_raw_df_total %>% 
+  mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric)
+# check if resolution is just ignore or na (pass)
+
+
+pdf("plot_kalivas_openfieldtask_raw.pdf", onefile = T)
+for (i in 1:(length(kalivas_oft_measures))){
+  
+  g_cohort <- kalivas_oft_raw_tograph %>%
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
+    ggplot(aes(x = cohort, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_oft_measures[i])) +
+    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_individual <- kalivas_oft_raw_tograph %>% 
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
+    ggplot(aes(x = session, group = labanimalid)) + 
+    geom_line(aes_string(y = kalivas_oft_measures[i])) + 
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort and By Individual"))
+  
+  print(g_cohort)
+  print(g_individual)
+}
+
+dev.off()
+
 
 ############################
 # Exp 3: TAIL FLICK
