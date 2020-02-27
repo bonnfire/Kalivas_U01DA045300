@@ -656,12 +656,13 @@ openfieldtask_raw_df_total <- openfieldtask_raw_df %>% group_by(subject_id, coho
          "total_cm_traveled" = "totdist", 
          "total_time_traveled_seconds" = "movtime") %>% 
   arrange(subject_id, date, time) %>% 
-  mutate(subject_id = toupper(subject_id)) %>% 
+  mutate(subject_id = toupper(subject_id),
+         date = as.character(date)) %>% 
   rename("labanimalid" = "subject_id") %>% 
   subset(rowSums(.[grep("_", names(.))], na.rm = T) != 0) %>%  ## 82 cases were sum == 0 in cohort2-4
   group_by(labanimalid) %>% 
   mutate(session = ifelse(dplyr::row_number(labanimalid) == 1, "before_SA", "after_SA")) %>% 
-  ungroup()
+  ungroup() %>% select(-c("time", "cage", "filename"))
   
 openfieldtask_raw_df_total %>% subset(!grepl("KAL\\d+", labanimalid))
 # openfieldtask_raw_df_total %>% add_count(labanimalid) %>% subset(n == 2) %>% distinct(labanimalid, cohort) %>% select(cohort) %>% table()
