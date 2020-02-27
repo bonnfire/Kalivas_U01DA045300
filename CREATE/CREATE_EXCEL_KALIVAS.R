@@ -35,9 +35,12 @@ extract_kalivas_mapping <- function(files, sheet){
     data_breeder <- data_breeder[-c(1:4),] %>%
       rename("dob" =  "date_of_birth",
              "dow" = "date_of_wean",
-             "shipmentdate" = "date_of_ship") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
+             "shipmentdate" = "date_of_ship",
+             "cohort" = "cohort_number",
+             "rfid" = "microchip") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
       select(-date_of_delivery) %>%
-      mutate_at(.vars = vars(datecols), .funs = datefunction)
+      mutate_at(.vars = vars(datecols), .funs = datefunction) %>% 
+      mutate(cohort = gsub("MUSC_", "", cohort))
 
     return(data_breeder)
     
@@ -46,22 +49,17 @@ extract_kalivas_mapping <- function(files, sheet){
 }
 
 kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames, "info_from_breeder") %>% 
-  rbindlist() %>% 
-  rename("cohort" = "cohort_number") %>% 
-  mutate(cohort = gsub("MUSC_", "", cohort)) %>%
-  rename("rfid" = "microchip") 
+  rbindlist()
 
 
 ### PICK UP HERE
-
-
 
 extract_kalivas_weights <- function(files, sheet){
   data_weight_list <-  lapply(files, function(i) {
     data_allsheets = u01.importxlsx(i)
     data_weight <- data_allsheets[[sheet]] # made to extract any of the sheets
-    
-    names(data_weight) <- c(data_weight[1, 1:5], data_weight[2, 6:ncol(data_weight)]) %>% tolower()
+    #data_weight <- data_allsheets$body_weights # used for troubleshooting
+    names(data_weight) <- c(data_weight[1, 1:7], data_weight[2, 8:ncol(data_weight)]) %>% tolower()
     
     # datecols <- c("dob", "dow", "shipmentdate")
     # datefunction <- function(x){
@@ -72,12 +70,14 @@ extract_kalivas_weights <- function(files, sheet){
     # 
     
     data_weight <- data_weight[-c(1:2),] %>%
-      gather(-microchip, )
-      rename("dob" =  "date_of_birth",
-             "dow" = "date_of_wean",
-             "shipmentdate" = "date_of_ship") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
-      select(-date_of_delivery) %>%
-      mutate_at(.vars = vars(datecols), .funs = datefunction)
+      gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -comment, -resolution) %>% 
+      rename("cohort" = "cohort_number",
+             "rfid" = "microchip") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
+      mutate(cohort = gsub("MUSC_", "", cohort)) %>% 
+      separate(var, into = c("date", "date_comment"), sep = "_", extra = "merge") %>% # warning messages about missing pieces filling with NA is expected and wanted
+      mutate(date = ifelse(grepl("^\\d{5}$", date), as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d") %>% as.character,
+                           as.character(date)), 
+             date = ifelse(grepl("^\\d{,2}/", date), lubridate::mdy(date) %>% as.character, as.character(date))) # warning messages about na's from the dates also expected
     
     return(data_weight)
     
@@ -87,10 +87,7 @@ extract_kalivas_weights <- function(files, sheet){
 
 
 kalivas_weights_xl <- extract_kalivas_weights(all_excel_fnames, "body_weights") %>% 
-  rbindlist() %>% 
-  rename("cohort" = "cohort_number") %>% 
-  mutate(cohort = gsub("MUSC_", "", cohort)) %>%
-  rename("rfid" = "microchip") 
+  rbindlist()
 
 
 
