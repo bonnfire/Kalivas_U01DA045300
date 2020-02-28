@@ -197,6 +197,9 @@ dev.off()
 ############################
 # Exp 3: TAIL FLICK
 ############################
+
+## NOTE THAT TAIL FLICK WILL NOT HAVE RAW DATA TO QC AGAINST 
+
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
 
 kalivas_tf_measures <- grep("_rt", names(kalivas_tf_allcohorts_excel_processed), value = T)
@@ -213,12 +216,20 @@ for (i in 1:(length(kalivas_tf_measures))){
     ggplot(aes(x = session, fill = heroin_or_saline)) + 
     geom_boxplot(aes_string(y = kalivas_tf_measures[i])) + 
     facet_grid(~ cohort_number)
+  g_sex <- kalivas_tf_allcohorts_excel_processed_tograph %>% 
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
+    ggplot(aes(x = session, color = heroin_or_saline, linetype = sex)) + 
+    geom_boxplot(aes_string(y = kalivas_tf_measures[i])) + 
+    facet_grid(~ cohort_number)
+  
+  print(g_cohort)  
+  print(g_sex)
 
-  print(g_cohort)
 }
 
 dev.off()
 
+kalivas_tf_allcohorts_excel_processed %>% subset(treatment_rt4_seconds %>% is.na)
 
 
 

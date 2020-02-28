@@ -130,7 +130,8 @@ extract_process_excel_lapply <- function(files, sheet){
       mutate_all(str_trim) %>%
       magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>%
       dplyr::filter(row_number() != 1) %>%
-      mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01"))
+      mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01") %>% as.character,
+             session = stringr::str_extract(session, "\\d+"))
     
     
     df <- left_join(df_values, df_sessiondosage, by = "session") %>%
@@ -294,11 +295,11 @@ kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened_lappl
 # ############################
 # # Exp 1: ELEVATED PLUS MAZE
 # ############################
-# setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks/elevated_plus_maze")
-# 
-# # all wmv files
-# 
-# 
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
+
+kalivas_epm_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "elevated_plus_maze") %>% rbindlist()
+
+data_breeder <- data_allsheets$elevated_plus_maze
 
 ############################
 # Exp 2: OPEN FIELD TASK
@@ -351,4 +352,6 @@ kalivas_oft_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures
 ############################
 # Exp 3: TAIL FLICK
 ############################
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
+
 kalivas_tf_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "tail_flick") %>% rbindlist()

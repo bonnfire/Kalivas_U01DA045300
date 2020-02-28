@@ -95,13 +95,13 @@ if(nrow(lga_Barray) == nrow(lga_subjects)){
 
 lga_merge %>% naniar::vis_miss() #complete cases all 1506 observations
 
-lga_allsubjects <- left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
+lga_allsubjects <- left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
-  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>% 
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
   distinct() %>% 
-  arrange(internal_id, startdate) %>% 
+  arrange(internal_id, date) %>% 
   select(-c(numseq, rownum, dob)) %>%  ## only the 80 in the mapping excel information
   mutate(session = gsub(".*day ", "", filename))
 
@@ -503,32 +503,6 @@ rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c
 
 
 
-# ################# old code; before they uploaded the text files 
-# 
-# setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks")
-# 
-# 
-# # self defined functions
-# uniform.var.names.testingu01 <- function(df){
-#   lapply(seq_along(df), function(i) {
-#     if(grepl("Parent", names(df[[i]])) %>% any()){
-#       names(df[[i]])[1:2] <- df[[i]][1,][1:2] %>% as.character()
-#       df[[i]] <- df[[i]][-1, ]
-#     }
-#     names(df[[i]]) <- mgsub::mgsub(names(df[[i]]),
-#                                    c(" |\\.", "#", "Transponder ID", "Date of Wean|Wean Date","Animal", "Shipping|Ship", "Dams"),
-#                                    c("", "Number", "RFID", "DOW","LabAnimal", "Shipment", "Dames"))
-#     # names(df[[i]]) <- mgsub::mgsub(names(df[[i]]),
-#     #                                c("DateofShipment", "LabAnimalID"), 
-#     #                                c("ShipmentDate", "LabAnimalNumber"))
-#     names(df[[i]]) <- mgsub::mgsub(names(df[[i]]),
-#                                    c("DateofShipment", "LabAnimalNumber"), 
-#                                    c("ShipmentDate", "LabAnimalID")) # actually keep the column named lab animal number
-#     names(df[[i]]) <- tolower(names(df[[i]]))
-#     df[[i]]
-#   })
-# }
-# 
 # ############################
 # # Exp 1: ELEVATED PLUS MAZE
 # ############################
@@ -536,7 +510,8 @@ rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c
 # 
 # # all wmv files
 # 
-# 
+# NEED TO FIGURE OUT HOW TO ANALYZE VIDEO FILES
+
 # ############################
 # # Exp 2: OPEN FIELD TASK
 # ############################
@@ -679,4 +654,4 @@ openfieldtask_raw_df_total %>% select(subject_id) %>% table()
 # # Exp 3: TAIL FLICK
 # ############################
 # 
-# 
+# WILL NOT GET RAW FILES
