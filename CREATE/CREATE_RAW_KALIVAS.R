@@ -19,6 +19,8 @@
 # Open field (After SA)
 
 
+# cohort 2 - KAL041-KAL079
+# cohort 3 - KAL081-KAL118
 
 
 #### 
@@ -333,21 +335,7 @@ expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>
   select(cohort_number, sex, rfid, internal_id, startdate, everything())
 
 
-ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
-  left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
-  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
-  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")], by = "filename") %>% # get file date 
-  rename("date" = "startdate") %>% 
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (date - dob) %>% as.numeric %>% round,
-         session = gsub(".*Extinction ", "", filename)) %>%
-  distinct() %>% 
-  arrange(cohort, labanimalid) %>% 
-  select(-c("dob")) %>%  
-  select(cohort, sex, rfid, labanimalid, date, inactive_lever, active_lever, experimentage, filename, comments, resolution)
+
 
 
 
@@ -392,23 +380,32 @@ ex_X <- ex_WX %>%
   cbind(ex_subjects$subjectid, .) %>% 
   rename("subjectid" = "ex_subjects$subjectid",
          "active_lever" = "value")
+
 ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
   mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
+         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")),
+         session = gsub(".*Extinction ", "", filename),
+         self_administration_room = sub(".*MUSC_Cohort \\d+?_(.*?) room.*", "\\1", filename) %>% str_trim(),
+         cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0")) %>% 
+  subset(subjectid != "KAL00"&inactive_lever !=0)
   left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
   left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
-  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")], by = "filename") %>% # get file date 
-  rename("date" = "startdate") %>% 
+  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>% # get file date 
   mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (date - dob) %>% as.numeric %>% round,
-         session = gsub(".*Extinction ", "", filename)) %>%
+         experimentage = (date - dob) %>% as.numeric %>% round) %>%
   distinct() %>% 
   arrange(cohort, labanimalid) %>% 
   select(-c("dob")) %>%  
-  select(cohort, sex, rfid, labanimalid, date, inactive_lever, active_lever, experimentage, filename, comments, resolution)
+  select(cohort, sex, rfid, labanimalid, date, session, inactive_lever, active_lever, experimentage, filename, comments, resolution)
 
-
+ex_subjects %>% subset(as.numeric(subjectid) < 41) %>% distinct(filename)
+merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
+  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")),
+         session = gsub(".*Extinction ", "", filename),
+         self_administration_room = sub(".*MUSC_Cohort \\d+?_(.*?) room.*", "\\1", filename) %>% str_trim(),
+         cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0")) %>% 
 
 #   mutate(subjectid = as.character(subjectid),
 #          subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
