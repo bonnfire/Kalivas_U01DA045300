@@ -121,6 +121,22 @@ lga_allsubjects_tograph %>%
                 infusions_excel == infusions_raw) %>% 
   dplyr::filter(resolution != "FLAG_EXPERIMENT"|is.na(resolution) ) 
 
+lga_allsubjects_tograph %>% 
+  subset(internal_id %in% head(unique(lga_allsubjects_tograph$internal_id), 4)) %>% 
+  dplyr::filter(active_lever_excel == active_lever_raw,
+                inactive_lever_excel == inactive_lever_raw,
+                infusions_excel == infusions_raw) %>% 
+  dplyr::filter(resolution != "FLAG_EXPERIMENT"|is.na(resolution) ) %>% 
+  mutate(session = as.numeric(session) %>% as.factor) %>% 
+  ggplot() + 
+  geom_path(aes(x = session, y = active_lever_excel, group = internal_id)) + 
+  facet_grid(~ sex) + 
+  labs(title = "Active Lever for Validated Data")
+
+lga_allsubjects_tograph %>% dplyr::filter_at(vars(matches("_raw")), is.na)
+
+
+
 
 # ## for email graphics: 
 # lga_allsubjects_tograph %>% 
@@ -139,7 +155,7 @@ lga_allsubjects_tograph %>%
 # Exp 2: OPEN FIELD TASK
 ############################
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
-pdf("plot_kalivas_openfieldtask_excel", onefile = T)
+ggplpdf("plot_kalivas_openfieldtask_excel", onefile = T)
 
 kalivas_oft_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
 kalivas_oft_allcohorts_excel_processed_tograph <- kalivas_oft_allcohorts_excel_processed %>% 

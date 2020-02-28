@@ -144,7 +144,8 @@ extract_process_excel_lapply <- function(files, sheet){
   return(data_breeder_list)
 }
 
-kalivas_lga_allcohorts_excel_processed <- extract_process_excel_lapply(all_excel_fnames, "LgA_SA") %>% rbindlist()
+kalivas_lga_allcohorts_excel_processed <- extract_process_excel_lapply(all_excel_fnames, "LgA_SA") %>% rbindlist() %>% 
+  select(-`...8`)
 
 # *****************
 ##  PR_test
