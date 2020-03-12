@@ -25,7 +25,7 @@
 
 #### 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #295 files
+allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #855 files
 
 ## in addiction tasks 
 
@@ -40,7 +40,8 @@ allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #295 fi
 
 
 ## cohort xx : after the session ended, rats received 0.05 ml of a mixture of Heparin and 1 mg/ml Gentamicin Sulfate (antibiotic) to maintain catheter patency and animal health
-allcohorts_longaccess_fnames <- grep("long", allcohorts_allexp_filenames, ignore.case = T, value = T)
+allcohorts_longaccess_fnames <- grep("long", allcohorts_allexp_filenames, ignore.case = T, value = T) #465 (cohort 2,3,4,5)
+
 # Extract subject information
 readsubject <- function(x){
   subject <- fread(paste0("grep -i 'subject' ", "'", x, "'", " | grep -Po ': \\K(w|KAL)?[0-9]*'"), header = F)
@@ -95,7 +96,7 @@ if(nrow(lga_Barray) == nrow(lga_subjects)){
     dplyr::filter(numberofBarrays != numberofsubjects) 
   print("LGA DATA COULD NOT BE JOINED")}
 
-lga_merge %>% naniar::vis_miss() #complete cases all 1506 observations
+lga_merge %>% naniar::vis_miss() #complete cases all 1786 observations
 
 # to deal with missing subjects using boxes lga_merge %>% subset(subjectid == "KAL000")
 lga_merge_fix <- lga_merge %>% subset(subjectid == "KAL000"&grepl("Cohort 2_ L room_LgA day 13", filename)) %>% 
@@ -247,7 +248,7 @@ allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_
 #   mutate(subjectid = as.character(subjectid),
 #     subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
 #   # mutate(cohort = str_match(filename, "/(.*?)/")[,2] %>% gsub("^.*([0-9]+).*", "\\1", .) %>% str_pad(., 2, pad = "0")) %>% 
-#   left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>% 
+#   left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>% 
 #   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
 #   left_join(., allcohorts_df_nodupes[, c("startdate", "filename")]) %>% 
 #   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
@@ -268,7 +269,7 @@ allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_
 # first 4 hours is extinction training; 2 hours left = receive injection of 0.25 mg/kg of heroin subcutaneous (heroin prime) XX ASKING OKSANA IS THIS SEEMS STANDARD
 # assess how the drug being "on board" affects drug-seeking behavior
 
-allcohorts_expr_fnames <- grep("Primed reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #72 files
+allcohorts_expr_fnames <- grep("Primed reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #46 files
 
 
 # Extract subject information
@@ -324,18 +325,16 @@ expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>
   merge(expr_subjects)  %>%
   mutate(subjectid = as.character(subjectid),
          subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
-  left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>% 
+  left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
-  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (startdate - dob) %>% as.numeric %>% round) %>% 
+  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>% 
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
   distinct() %>% 
-  arrange(cohort_number, internal_id) %>% 
+  arrange(cohort, internal_id) %>% 
   select(-c("dob")) %>%  
-  select(cohort_number, sex, rfid, internal_id, startdate, everything())
-
-
-
+  select(cohort, sex, rfid, internal_id, date, everything())
+expr_allsubjects %>% naniar::vis_miss()
 
 
 
@@ -347,7 +346,7 @@ expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>
 # food, water bottle, and metal toy were not placed in cage
 # session runs for 2 hours
 
-allcohorts_ex_fnames <- grep("extinction", allcohorts_allexp_filenames, ignore.case = T, value = T) #72 files
+allcohorts_ex_fnames <- grep("extinction", allcohorts_allexp_filenames, ignore.case = T, value = T) #256 files
 
 # Extract subject information
 ex_subjects <- lapply(allcohorts_ex_fnames, readsubject) %>% 
@@ -369,7 +368,7 @@ ex_WX <- lapply(allcohorts_ex_fnames, read_WX) %>% rbindlist(fill = T) %>%
   tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
   rename("value" = "V2") %>%
   mutate(rownum = as.numeric(rownum)) %>% 
-  arrange(filename, rownum)   
+  arrange(filename, rownum) # ignore the warning message: expected 2 pieces; this is expected
 ex_W <- ex_WX %>% 
   dplyr::filter(var == "W") %>% 
   cbind(ex_subjects$subjectid, .) %>% 
@@ -409,7 +408,7 @@ merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_le
 
 #   mutate(subjectid = as.character(subjectid),
 #          subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
-#   left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+#   left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
 #   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
 #   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
 #   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
@@ -480,7 +479,7 @@ rein_X <- lapply(allcohorts_rein_fnames, function(x){
 rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c("subjectid", "active_lever", "filename")]) %>% 
   mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
          subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
-  # left_join(kalivas_allcohorts[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
+  # left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
   left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
   left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
