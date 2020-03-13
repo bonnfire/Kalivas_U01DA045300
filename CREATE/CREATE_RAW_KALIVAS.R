@@ -602,6 +602,11 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
   mutate(subject_id = replace(subject_id, grepl("C2Group2OF2", filename) & subject_id == "NO ANIMAL" & cage == 7, "KAL056"))
 
+# In the raw data files subjects KAL079 and KAL080 are listed as KAL080 and KAL073 respectively. Data can be found in Cohort02_Group5_OF1
+openfieldtask_raw_df <- openfieldtask_raw_df %>% 
+  mutate(subject_id = replace(subject_id, grepl("C2Group5OF1", filename) & subject_id == "KAL080", "KAL079"),
+         subject_id = replace(subject_id, grepl("C2Group5OF1", filename) & subject_id == "KAL073", "KAL080"))
+
 
 ## Mistaken subjects for the following subjects, must also use excel files to replace
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/behavioral_tasks/open_field_task")
@@ -656,7 +661,9 @@ openfieldtask_raw_df_total %>% subset(!grepl("KAL\\d+", labanimalid))
 
 # used to be relevant here # %>% mutate(actfilename = str_match(actfilename, "/.*/(.*?)_raw*.")[,2])
 ## note this: could be because of diff cohorts
-openfieldtask_raw_df_total %>% select(subject_id) %>% table()
+openfieldtask_raw_df_total %>% select(labanimalid) %>% table() %>% 
+  as.data.frame() %>% subset(Freq != 2) %>% 
+  left_join(., kalivas_oft_allcohorts_excel_processed[c("internal_id", "comment", "resolution") ] , by = c("." = "internal_id"))
 
 
 # ############################
