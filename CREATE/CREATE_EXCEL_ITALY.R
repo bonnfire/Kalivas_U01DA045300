@@ -22,20 +22,31 @@ names(Italy_excel_C01_05) <- Italy_excel_C01_05[1,] %>% unlist() %>% as.characte
 
 Italy_excel_C01_05 <- Italy_excel_C01_05[-1, ] 
 
+# function to use for all exps below
+xl_to_long_df <- function(x){
+  names(x) <- x[1,] %>% make_clean_names()
+  x <- x[-1,] %>% 
+    gather(var, value, -transponder_number, -animal_id_given_by_breeder, -animal_id_given_by_behav_unit, -sex, -coat_color, -heroin_saline_yoked, -loco_index, -cohort) %>% 
+    extract(var, c("measurement", "session"), "(.*)(\\d)") %>% 
+    mutate(session = ifelse(session == 1, "before_SA", "after_SA"),
+           value = format(round(as.numeric(value), 2), nsmall = 2),
+           value = as.numeric(value),
+           cohort = str_pad(parse_number(cohort), 2, "left", "0"))
+  return(x)
+}
+
+
 # ############################
 # # Exp 1: ELEVATED PLUS MAZE
 # ############################
 Italy_epm_C01_05_xl <- Italy_excel_C01_05 %>% 
   select(matches("identity|elevated"))
-names(Italy_epm_C01_05_xl) <- Italy_epm_C01_05_xl[1, ] %>% make_clean_names()
-Italy_epm_C01_05_xl <- Italy_epm_C01_05_xl[-1,] %>% 
-  gather(var, value, -transponder_number, -animal_id_given_by_breeder, -animal_id_given_by_behav_unit, -sex, -coat_color, -heroin_saline_yoked, -loco_index, -cohort) %>% 
-  extract(var, c("measurement", "session"), "(.*)(\\d)") %>% 
-  mutate(session = ifelse(session == 1, "before_SA", "after_SA"),
-         value = format(round(as.numeric(value), 2), nsmall = 2),
-         cohort = str_pad(parse_number(cohort), 2, "left", "0"))
-
+Italy_epm_C01_05_xl <- xl_to_long_df(Italy_epm_C01_05_xl)
 
 # ############################
 # # Exp 2: OPEN FIELD TASK
 # ############################
+
+Italy_oft_C01_05_xl <- Italy_excel_C01_05 %>% 
+  select(matches("identity|open"))
+Italy_oft_C01_05_xl <- xl_to_long_df(Italy_oft_C01_05_xl)
