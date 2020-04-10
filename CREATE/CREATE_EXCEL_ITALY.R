@@ -9,7 +9,24 @@
 #   different session lengths
 # different trait names
 # how many traits collected?
-  
+
+
+
+## check if the order is the same as the protocol for kalivas in us
+# First body weight 
+# Tail flick (Before SA)
+# EPM (Before SA)
+# Open field (Before SA)
+# LGA1-12 # use end date (12 hours sessions)
+# PR 
+# LGA13-15 
+# Extinction prime
+# Extinction 1-3
+# Cued reinstatement 
+# Tail flick (After SA)
+# EPM (After SA)
+# Open field (After SA)
+
 
 # Received 4/3/2020 from Palmer from Nazzareno
 
@@ -50,3 +67,47 @@ Italy_epm_C01_05_xl <- xl_to_long_df(Italy_epm_C01_05_xl)
 Italy_oft_C01_05_xl <- Italy_excel_C01_05 %>% 
   select(matches("identity|open"))
 Italy_oft_C01_05_xl <- xl_to_long_df(Italy_oft_C01_05_xl)
+
+# ############################
+# # Exp 3: TAIL FLICK
+# ############################
+
+Italy_tailflick_C01_05_xl <- Italy_excel_C01_05 %>% 
+  select(matches("identity|tail_flick"))
+Italy_tailflick_C01_05_xl <- xl_to_long_df(Italy_tailflick_C01_05_xl)
+
+# ############################
+# # Exp 4: Addiction related 
+# ############################
+
+#####  LONG ACCESS & PROGRESSIVE RATIO
+Italy_lgapr_C01_05_xl <- Italy_excel_C01_05 %>% 
+  select(matches("identity|self_admin"))
+Italy_lgapr_C01_05_xl <- xl_to_long_df(Italy_lgapr_C01_05_xl)
+
+
+#####  EXTINCTION PRIME XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+## figure how which hours maps to which? 
+Italy_expr_C01_05_xl <- Italy_excel_C01_05 %>% 
+  select(matches("identity|extinction"))
+Italy_expr_C01_05_xl <- xl_to_long_df(Italy_expr_C01_05_xl)
+
+
+#####  EXTINCTION XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+## figure how which hours maps to which? 
+Italy_expr_C01_05_xl <- Italy_excel_C01_05 %>% 
+  select(matches("identity|extinction"))
+Italy_expr_C01_05_xl <- xl_to_long_df(Italy_expr_C01_05_xl)
+
+#####  CUED REINSTATEMENT
+
+## figure how which hours maps to which? 
+Italy_cuedrein_C01_05_xl <- Italy_excel_C01_05 %>% 
+  select(matches("identity|reinstatement"))
+Italy_cuedrein_C01_05_xl <- xl_to_long_df(Italy_cuedrein_C01_05_xl)
+
+
+
+
