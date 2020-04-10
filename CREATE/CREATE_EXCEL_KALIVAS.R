@@ -260,8 +260,48 @@ kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened_lappl
 
 
 
+## test 
+
+## use this code to create something similar to italy's data
+############# self admin (lga/pr) XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+kalivas_lga_allcohorts_excel_processed %>% 
+  subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>% 
+  select(rfid, session, active_lever, inactive_lever, infusions)  ### don't know how to convert these values to the escalation of heroin intake
+  
+kalivas_lga_allcohorts_excel_processed %>%
+  subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>%
+  select(rfid, session, infusions) %>%
+  pivot_wider(names_from = session, values_from = infusions, names_prefix = "session_") %>%
+  mutate_at(vars(-matches("rfid")), as.numeric) %>% 
+  # mutate(mean = rowMeans(select(., starts_with("session_[123]"))))
+  # mutate(mean = rowMeans(select(., ends_with("_[123]"))))
+  mutate(mean = rowMeans(.[grep("session_[123]$", names(.))], na.rm =TRUE))
+  
+rowMeans(.[grep("session_[123]", names(.))], na.rm =TRUE))
+
+  mutate(mean = mean(vars(matches("session_[123]"))))
+  
+  
+############# prime extinction
+kalivas_expr_allcohorts_excel_processed %>% 
+  # subset((rfid == "933000320046651"|rfid =="933000320046468")) %>%
+  mutate_at(vars(matches("hour_")), as.numeric) %>% 
+  group_by(rfid, lever) %>% 
+  summarize(prime_sum_5_6 = hour_5 + hour_6,
+            ext_prime_sum_3_4 = hour_3 + hour_4,
+            context_sum_1_2 = hour_1 + hour_2) %>% 
+  pivot_wider(names_from = lever, values_from = c("context_sum_1_2", "ext_prime_sum_3_4", "prime_sum_5_6")) # update from tidyr, more flexibility 
 
 
+## use this code to create something similar to italy's data
+############ extinction
+kalivas_ex_allcohorts_excel_processed %>% 
+  # subset((rfid == "933000320046651"|rfid =="933000320046468")&session%in%c("1", "6")) %>% 
+  subset(session%in%c("1", "6")) %>% 
+  mutate(active_lever = as.numeric(active_lever)) %>% 
+  group_by(rfid) %>% 
+  summarize(deescalation = active_lever[2]-active_lever[1]) %>% select(rfid, deescalation)
 
 
 
