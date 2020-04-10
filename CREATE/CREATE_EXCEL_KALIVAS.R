@@ -274,14 +274,20 @@ kalivas_lga_allcohorts_excel_processed %>%
   select(rfid, session, infusions) %>%
   pivot_wider(names_from = session, values_from = infusions, names_prefix = "session_") %>%
   mutate_at(vars(-matches("rfid")), as.numeric) %>% 
-  # mutate(mean = rowMeans(select(., starts_with("session_[123]"))))
-  # mutate(mean = rowMeans(select(., ends_with("_[123]"))))
-  mutate(mean = rowMeans(.[grep("session_[123]$", names(.))], na.rm =TRUE))
+  mutate(mean_firstsessions = rowMeans(.[grep("session_[123]$", names(.))], na.rm =TRUE),
+         mean_latersessions = rowMeans(.[grep("session_1[012]$", names(.))], na.rm =TRUE),
+         escalation = mean_latersessions - mean_firstsessions) %>% 
+  select(-matches("mean"))
   
-rowMeans(.[grep("session_[123]", names(.))], na.rm =TRUE))
+## XX ASK ITALY TEAM IF THIS SHOULD BE ACTIVE LEVERS, INACTIVE, OR INFUSIONS?? HOW TO TRANSLATE TO HEROIN INTAKE
+## missing escalation during 1st hour 
+## missing total heroin consumption by body weight 
+## missing total heroin consumption 
 
-  mutate(mean = mean(vars(matches("session_[123]"))))
-  
+
+
+
+
   
 ############# prime extinction
 kalivas_expr_allcohorts_excel_processed %>% 
