@@ -270,7 +270,8 @@ kalivas_lga_allcohorts_excel_processed %>%
   select(rfid, session, active_lever, inactive_lever, infusions)  ### don't know how to convert these values to the escalation of heroin intake
   
 kalivas_lga_allcohorts_excel_processed %>%
-  subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>%
+  # subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>%
+  subset(session %in% c("1", "2", "3", "10", "11", "12")) %>%
   select(rfid, session, infusions) %>%
   pivot_wider(names_from = session, values_from = infusions, names_prefix = "session_") %>%
   mutate_at(vars(-matches("rfid")), as.numeric) %>% 
@@ -285,6 +286,11 @@ kalivas_lga_allcohorts_excel_processed %>%
 ## missing total heroin consumption 
 
 
+## XX CHECK THAT BREAKPOINT IS THE PR_STEP, IF SO, THEN THIS IS DONE 
+kalivas_lga_allcohorts_excel_processed %>% 
+  subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>% 
+  select(rfid, pr_step, infusions) %>%  ### don't know how to convert these values to the escalation of heroin intake
+  mutate_at(vars(-matches("rfid")), as.numeric) 
 
 
 
