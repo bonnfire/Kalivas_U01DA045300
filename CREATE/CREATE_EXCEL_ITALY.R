@@ -103,6 +103,7 @@ Italy_expr_C01_05_xl <- xl_to_long_df(Italy_expr_C01_05_xl)
 
 #####  CUED REINSTATEMENT
 
+# extinction de-escalation =(active lever Day 6) - (active lever Day 1)
 ## figure how which hours maps to which? 
 Italy_cuedrein_C01_05_xl <- Italy_excel_C01_05 %>% 
   select(matches("identity|reinstatement"))
