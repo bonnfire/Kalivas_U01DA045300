@@ -267,8 +267,9 @@ kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened_lappl
 
 kalivas_lga_allcohorts_excel_processed %>% 
   subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>% 
-  select(rfid, session, active_lever, inactive_lever, infusions)  ### don't know how to convert these values to the escalation of heroin intake
-  
+  select(rfid, session, infusions) %>%  ### don't know how to convert these values to the escalation of heroin intake
+  mutate(intake = 20 * as.numeric(infusions)) # total consumption in ug/kg then it’s (# of infusions)(20). Our infusions are 20 ug/kg. 
+    
 kalivas_lga_allcohorts_excel_processed %>%
   # subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>%
   subset(session %in% c("1", "2", "3", "10", "11", "12")) %>%
