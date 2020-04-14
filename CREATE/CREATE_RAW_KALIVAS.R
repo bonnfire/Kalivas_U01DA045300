@@ -121,6 +121,135 @@ lga_allsubjects <- left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob"
 
 lga_allsubjects %>% naniar::vis_miss()
 
+
+
+#####################################################################
+## lga -- first hour of the session
+# Matrix S reports inter-infusion intervals in seconds, so your first hour will be any infusion equal to or under 3600 seconds (the counter is in respect to second 0).
+readSarray <- function(x){
+  Sarray <- fread(paste0("awk '/S:/{flag=1;next}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
+  Sarray$filename <- x
+  return(Sarray)
+} 
+
+lga_Sarray <- lapply(allcohorts_longaccess_fnames, readSarray) %>% rbindlist(fill = T)
+# lga_Sarray %>% subset(is.na(V1)) RETURNED A NULL DATA.TABLE
+lga_Sarray_indices <- grep("^0:$", lga_Sarray$V1)
+processedSdata_lga <- lapply(split(lga_Sarray, cumsum(1:nrow(lga_Sarray) %in% lga_Sarray_indices)), function(x){
+  indexremoved <- x %>% select(-V1)
+  Sarray <- as.vector(t(data.matrix(indexremoved)))
+  # Sarray <- Sarray[!is.na(Sarray)]
+  Sarray_df <- data.frame(intake = length(Sarray[which(Sarray<3600)]), 
+                       filename = x$filename[1])
+  # Sarray <- colSums(matrix(Sarray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
+  # Sarray <- data.frame(inactive_leverpresses = Sarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
+  # Sarray <- data.frame(leverpresses = Sarray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "inactive")
+  return(Sarray_df)
+}) %>% rbindlist(fill = T)
+lga_subjects
+
+readSarray <- function(x){
+  Sarray <- fread(paste0("awk '/S:/{flag=1;next}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
+  Sarray$filename <- x
+  return(Sarray)
+} 
+lga_subset_df <- lapply("./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 13", function(x){
+  Sarray <- fread(paste0("awk '/S:/{flag=1}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
+  Sarray$filename <- x
+  return(Sarray)
+}) %>% rbindlist(fill = T)
+lga_Sarray_c02_lga13 <- lga_Sarray %>% subset(grepl("MUSC_Cohort 2_ L room_LgA day 13", filename))
+lga_Sarray_c02_lga13_indices <- grep("^0:$", lga_Sarray_c02_lga13$V1)
+
+processedSdata_lga <- lapply(split(lga_Sarray_c02_lga13, cumsum(1:nrow(lga_Sarray_c02_lga13) %in% lga_Sarray_c02_lga13_indices)), function(x){
+  indexremoved <- x %>% select(-V1)
+  Sarray <- as.vector(t(data.matrix(indexremoved)))
+  # Sarray <- Sarray[!is.na(Sarray)]
+  Sarray_df <- data.frame(intake = length(Sarray[which(Sarray<3600)]), 
+                          filename = x$filename[1])
+  # Sarray <- colSums(matrix(Sarray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
+  # Sarray <- data.frame(inactive_leverpresses = Sarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
+  # Sarray <- data.frame(leverpresses = Sarray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "inactive")
+  return(Sarray_df)
+}) %>% rbindlist(fill = T)
+
+
+
+processedSdata_lga %>% 
+  group_by(filename) %>% 
+  add_count(filename) %>% 
+  merge(., lga_subjects %>% 
+          count(filename), by = "filename") %>%   
+  rename("numberofSarrays" = "n.x", "numberofsubjects" = "n.y") %>% 
+  select(numberofSarrays, numberofsubjects, filename) %>% 
+  group_by(filename) %>% 
+  slice(1) %>% 
+  dplyr::filter(numberofSarrays != numberofsubjects) 
+
+
+names(processedSdata_lga) <- lga_subjects$subjectid
+processedAdata_expr_wide <- processedAdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, leverpresses)
+
+
+
+lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fill = T) %>% 
+  dplyr::select(-c(V2, V6)) %>% 
+  dplyr::rename("rownum" = "V1",
+                "inactive_lever" = "V3",
+                "active_lever" = "V4", 
+                "infusions" = "V5") %>% 
+  mutate(rownum = gsub("-", "", rownum) %>% as.numeric) %>% 
+  arrange(filename, rownum) %>% 
+  group_by(filename) %>% 
+  mutate(numseq = row_number()) %>% 
+  ungroup() 
+lga_Barray %>% naniar::vis_miss()
+
+if(nrow(lga_Barray) == nrow(lga_subjects)){
+  lga_merge <- merge(lga_subjects, lga_Barray) %>% 
+    mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+           subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")))
+  print("LGA_merge object created")
+} else {
+  lga_Barray %>% 
+    group_by(filename) %>% 
+    add_count(filename) %>% 
+    merge(., lga_subjects %>% 
+            count(filename), by = "filename") %>%   
+    rename("numberofBarrays" = "n.x", "numberofsubjects" = "n.y") %>% 
+    select(numberofBarrays, numberofsubjects, filename) %>% 
+    group_by(filename) %>% 
+    slice(1) %>% 
+    dplyr::filter(numberofBarrays != numberofsubjects) 
+  print("LGA DATA COULD NOT BE JOINED")}
+
+lga_merge %>% naniar::vis_miss() #complete cases all 1786 observations
+
+# to deal with missing subjects using boxes lga_merge %>% subset(subjectid == "KAL000")
+lga_merge_fix <- lga_merge %>% subset(subjectid == "KAL000"&grepl("Cohort 2_ L room_LgA day 13", filename)) %>% 
+  # mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  cbind(., allcohorts_df_nodupes %>% subset(grepl("Cohort 2_ L room_LgA day 13", filename)) %>% select(box)) %>% 
+  mutate(session = gsub(".*day ", "", filename), 
+         self_administration_room = sub(".*_ (.*?)room.*", "\\1", filename) %>% str_trim(),
+         cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0")) %>% 
+  left_join(., kalivas_lga_allcohorts_excel_processed[, c("internal_id", "self_administration_box", "session", "self_administration_room", "cohort_number")], 
+            by = c("box" = "self_administration_box", "session", "self_administration_room", "cohort" = "cohort_number"))
+
+lga_allsubjects <- left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  left_join(., allcohorts_df_nodupes[, c("date", "filename", "box")], by = "filename") %>% 
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
+  distinct() %>% 
+  arrange(internal_id, date) %>% 
+  select(-c(numseq, rownum, dob)) %>%  ## only the 80 in the mapping excel information
+  mutate(session = gsub(".*day ", "", filename),
+         date = as.character(date)) 
+
+lga_allsubjects %>% naniar::vis_miss()
+
+
+
 # *****************
 # create missingness table for kalivas team
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
