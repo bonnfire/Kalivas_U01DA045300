@@ -126,53 +126,57 @@ lga_allsubjects %>% naniar::vis_miss()
 #####################################################################
 ## lga -- first hour of the session
 # Matrix S reports inter-infusion intervals in seconds, so your first hour will be any infusion equal to or under 3600 seconds (the counter is in respect to second 0).
-readSarray <- function(x){
-  Sarray <- fread(paste0("awk '/S:/{flag=1;next}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
-  Sarray$filename <- x
-  return(Sarray)
-} 
-
-lga_Sarray <- lapply(allcohorts_longaccess_fnames, readSarray) %>% rbindlist(fill = T)
-# lga_Sarray %>% subset(is.na(V1)) RETURNED A NULL DATA.TABLE
-lga_Sarray_indices <- grep("^0:$", lga_Sarray$V1)
-processedSdata_lga <- lapply(split(lga_Sarray, cumsum(1:nrow(lga_Sarray) %in% lga_Sarray_indices)), function(x){
-  indexremoved <- x %>% select(-V1)
-  Sarray <- as.vector(t(data.matrix(indexremoved)))
-  # Sarray <- Sarray[!is.na(Sarray)]
-  Sarray_df <- data.frame(intake = length(Sarray[which(Sarray<3600)]), 
-                       filename = x$filename[1])
-  # Sarray <- colSums(matrix(Sarray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
-  # Sarray <- data.frame(inactive_leverpresses = Sarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
-  # Sarray <- data.frame(leverpresses = Sarray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "inactive")
-  return(Sarray_df)
-}) %>% rbindlist(fill = T)
-lga_subjects
 
 readSarray <- function(x){
-  Sarray <- fread(paste0("awk '/S:/{flag=1;next}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
-  Sarray$filename <- x
-  return(Sarray)
-} 
-lga_subset_df <- lapply("./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 13", function(x){
   Sarray <- fread(paste0("awk '/S:/{flag=1}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
   Sarray$filename <- x
+  Sarray <- Sarray %>%
+    # mutate(V1 = gsub("[.](\\d{3})", "[.]\\1:")) %>% 
+    separate(V1, into = c("V2", "V3", "V4", "V5", "V6", "V7"), sep = "[[:space:]]+") %>%
+    dplyr::filter(V2=="S:"&lead(V2)=="S:"|grepl("^\\d", V2)|V2=="S:"&row_number()==n())
+  return(Sarray)
+} 
+lga_Sarray <- lapply(allcohorts_longaccess_fnames, readSarray) %>% rbindlist(fill = T)
+# lga_Sarray %>% subset(is.na(V1)) FIND WHICH ONES RETURNED A NULL DATA.TABLE
+lga_Sarray_indices <- grep("^[S0]:$", lga_Sarray$V2)
+
+processedSdata_lga <- lapply(split(lga_Sarray, cumsum(1:nrow(lga_Sarray) %in% lga_Sarray_indices)), function(x){
+  Sarray <- as.vector(t(data.matrix(x)))
+  Sarray_df <- data.frame(Sarray = Sarray,
+                          filename = x$filename[1]) %>% 
+    group_by(filename) %>% 
+    summarize(intake = ifelse(sum(Sarray, na.rm = T) == 0, NA, length(Sarray[which(Sarray<3600)]))) %>% 
+    ungroup()
+  return(Sarray_df)
+}) %>% rbindlist(fill = T) %>% 
+  mutate(filename = as.character(filename))
+processedSdata_lga <- cbind(processedSdata_lga, lga_subjects[,"subjectid"])
+
+
+
+
+## substitute this one: "./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 13"
+## substitute this one: "./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 8"
+
+lga_subset_df <- lapply("./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 8", function(x){
+  Sarray <- fread(paste0("awk '/S:/{flag=1}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
+  Sarray$filename <- x
+  Sarray <- Sarray %>%
+    separate(V1, into = c("V2", "V3", "V4", "V5", "V6", "V7"), sep = "[[:space:]]+") %>% subset(V2=="S:"&lead(V2)=="S:"|grepl("^\\d", V2))
   return(Sarray)
 }) %>% rbindlist(fill = T)
-lga_Sarray_c02_lga13 <- lga_Sarray %>% subset(grepl("MUSC_Cohort 2_ L room_LgA day 13", filename))
-lga_Sarray_c02_lga13_indices <- grep("^0:$", lga_Sarray_c02_lga13$V1)
+lga_Sarray_c02_lga13_indices <- grep("^[S0]:$", lga_subset_df$V2)
 
-processedSdata_lga <- lapply(split(lga_Sarray_c02_lga13, cumsum(1:nrow(lga_Sarray_c02_lga13) %in% lga_Sarray_c02_lga13_indices)), function(x){
-  indexremoved <- x %>% select(-V1)
-  Sarray <- as.vector(t(data.matrix(indexremoved)))
-  # Sarray <- Sarray[!is.na(Sarray)]
-  Sarray_df <- data.frame(intake = length(Sarray[which(Sarray<3600)]), 
-                          filename = x$filename[1])
-  # Sarray <- colSums(matrix(Sarray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
-  # Sarray <- data.frame(inactive_leverpresses = Sarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
-  # Sarray <- data.frame(leverpresses = Sarray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "inactive")
+processedSdata_lga <- lapply(split(lga_subset_df, cumsum(1:nrow(lga_subset_df) %in% lga_Sarray_c02_lga13_indices)), function(x){
+  Sarray <- as.vector(t(data.matrix(x)))
+  Sarray_df <- data.frame(Sarray = Sarray,
+                          filename = x$filename[1]) %>% 
+    group_by(filename) %>% 
+    summarize(intake = ifelse(sum(Sarray, na.rm = T) == 0, NA, length(Sarray[which(Sarray<3600)]))) %>% 
+    ungroup()
   return(Sarray_df)
-}) %>% rbindlist(fill = T)
-
+}) %>% rbindlist(fill = T) %>% 
+  mutate(filename = as.character(filename))
 
 
 processedSdata_lga %>% 
