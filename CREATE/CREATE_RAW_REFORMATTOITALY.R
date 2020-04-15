@@ -77,6 +77,23 @@ if(nrow(lga_Barray) == nrow(lga_subjects)){
 
 lga_merge %>% naniar::vis_miss() #complete cases all 1786 observations
 
+selfadmin_escalation_12h <- lga_merge %>% 
+  mutate(cohort = str_match(filename, "/(.*?)/")[,2], 
+         cohort = str_extract(cohort, "\\d+"),
+         filename = gsub(".*MUSC_", "", filename),
+         intake = infusions * 20) %>% 
+  # day_session = gsub(".*day", "", filename)) %>% 
+  select(cohort, subjectid, filename, infusions, intake) %>% 
+  arrange(cohort, subjectid, filename) %>% 
+  subset(!subjectid %in% c("KALNA", "KAL000")) %>% 
+  mutate(day_session = str_match(filename, "LgA (day )?\\d+")[,1] %>% parse_number()) %>% 
+  subset(day_session %in% c(1:3, 10:12)) %>% 
+  mutate(day_session_type = ifelse(day_session %in% c(1:3), "early", "late")) %>% 
+  group_by(cohort, subjectid, day_session_type) %>% 
+  summarize(avg_intake = mean(intake)) %>% 
+  ungroup()
+selfadmin_escalation_12h %>% select(cohort) %>% table()
+
 ### deal with missing subjects later on XX 
 
 
@@ -89,7 +106,6 @@ readSarray <- function(x){
   Sarray <- fread(paste0("awk '/S:/{flag=1}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
   Sarray$filename <- x
   Sarray <- Sarray %>%
-    # mutate(V1 = gsub("[.](\\d{3})", "[.]\\1:")) %>% 
     separate(V1, into = c("V2", "V3", "V4", "V5", "V6", "V7"), sep = "[[:space:]]+") %>%
     dplyr::filter(V2=="S:"&lead(V2)=="S:"|grepl("^\\d", V2)|V2=="S:"&row_number()==n())
   return(Sarray)
