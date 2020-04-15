@@ -151,8 +151,8 @@ processedSdata_lga <- lapply(split(lga_Sarray, cumsum(1:nrow(lga_Sarray) %in% lg
 }) %>% rbindlist(fill = T) %>% 
   mutate(filename = as.character(filename))
 processedSdata_lga <- cbind(processedSdata_lga, lga_subjects[,"subjectid"])
-
-
+# processedSdata_lga %>% subset(is.na(intake))
+## PICK UP FROM HERE
 
 
 ## substitute this one: "./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 13"
