@@ -1,28 +1,5 @@
-#############################
-# Protocol 
-#############################
+## CREATE RAW TO IMITATE ITALY DATA
 
-## use dates or confirm with them 
-
-# First body weight 
-# Tail flick (Before SA)
-# EPM (Before SA)
-# Open field (Before SA)
-# LGA1-12 # use end date (12 hours sessions)
-# PR 
-# LGA13-15 
-# Extinction prime
-# Extinction 1-3
-# Cued reinstatement 
-# Tail flick (After SA)
-# EPM (After SA)
-# Open field (After SA)
-
-
-# cohort 2 - KAL041-KAL079
-# cohort 3 - KAL081-KAL118
-# cohort 4 - XX 
-# cohort 5 - XX 
 
 #### 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
@@ -43,6 +20,7 @@ allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #1133 f
 ## cohort xx : after the session ended, rats received 0.05 ml of a mixture of Heparin and 1 mg/ml Gentamicin Sulfate (antibiotic) to maintain catheter patency and animal health
 allcohorts_longaccess_fnames <- grep("long", allcohorts_allexp_filenames, ignore.case = T, value = T) #743 (cohort 2,3,4,5)
 
+## TO GET : ESCALATION OF HEROIN INTAKE 12H 
 # Extract subject information
 readsubject <- function(x){
   subject <- fread(paste0("grep -i 'subject' ", "'", x, "'", " | grep -Po ': \\K(w|KAL)?[0-9]*'"), header = F)
@@ -57,7 +35,7 @@ lga_subjects <- lapply(allcohorts_longaccess_fnames, readsubject) %>%
   ungroup() 
 
 lga_subjects %>% dplyr::filter(is.na(subjectid)) 
-  
+
 
 # B array contains the inactive lever, active lever, and infusion information
 readBarray <- function(x){
@@ -69,9 +47,9 @@ readBarray <- function(x){
 lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fill = T) %>% 
   dplyr::select(-c(V2, V6)) %>% 
   dplyr::rename("rownum" = "V1",
-         "inactive_lever" = "V3",
-         "active_lever" = "V4", 
-         "infusions" = "V5") %>% 
+                "inactive_lever" = "V3",
+                "active_lever" = "V4", 
+                "infusions" = "V5") %>% 
   mutate(rownum = gsub("-", "", rownum) %>% as.numeric) %>% 
   arrange(filename, rownum) %>% 
   group_by(filename) %>% 
@@ -84,7 +62,7 @@ if(nrow(lga_Barray) == nrow(lga_subjects)){
     mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
            subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")))
   print("LGA_merge object created")
-  } else {
+} else {
   lga_Barray %>% 
     group_by(filename) %>% 
     add_count(filename) %>% 
@@ -99,32 +77,11 @@ if(nrow(lga_Barray) == nrow(lga_subjects)){
 
 lga_merge %>% naniar::vis_miss() #complete cases all 1786 observations
 
-# to deal with missing subjects using boxes lga_merge %>% subset(subjectid == "KAL000")
-lga_merge_fix <- lga_merge %>% subset(subjectid == "KAL000"&grepl("Cohort 2_ L room_LgA day 13", filename)) %>% 
-  # mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  cbind(., allcohorts_df_nodupes %>% subset(grepl("Cohort 2_ L room_LgA day 13", filename)) %>% select(box)) %>% 
-  mutate(session = gsub(".*day ", "", filename), 
-         self_administration_room = sub(".*_ (.*?)room.*", "\\1", filename) %>% str_trim(),
-         cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0")) %>% 
-  left_join(., kalivas_lga_allcohorts_excel_processed[, c("internal_id", "self_administration_box", "session", "self_administration_room", "cohort_number")], 
-            by = c("box" = "self_administration_box", "session", "self_administration_room", "cohort" = "cohort_number"))
-  
-lga_allsubjects <- left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  left_join(., allcohorts_df_nodupes[, c("date", "filename", "box")], by = "filename") %>% 
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
-  distinct() %>% 
-  arrange(internal_id, date) %>% 
-  select(-c(numseq, rownum, dob)) %>%  ## only the 80 in the mapping excel information
-  mutate(session = gsub(".*day ", "", filename),
-         date = as.character(date)) 
-
-lga_allsubjects %>% naniar::vis_miss()
+### deal with missing subjects later on XX 
 
 
 
-#####################################################################
+## TO GET : ESCALATION OF HEROIN INTAKE DURING THE FIRST HOUR OF SA
 ## lga -- first hour of the session
 # Matrix S reports inter-infusion intervals in seconds, so your first hour will be any infusion equal to or under 3600 seconds (the counter is in respect to second 0).
 
@@ -687,7 +644,7 @@ openfieldtask_raw_df <- lapply(openfieldtask_raw_list, function(df){
     tolower() %>%
     make.unique(sep = ".")
   return(df)
-  }) %>% rbindlist()
+}) %>% rbindlist()
 
 
 # # to do: MUSC (Analyse) email (11/26/19) 'n some of the ACT files the subject ID was either mislabeled or unlabeled when the experimental session was originally set up, due to either operator error or the animal needing to switch cages at the last minute after it was too late to change the subject ID. So every animals data is there but the subject ID number does not match the cage it was run in--we know which cage each animal is ultimately run in because we take notes of during each session and write down any unexpected changes or errors. 
@@ -701,7 +658,7 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL042", "KAL041"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "KAL0041", "KAL042"),
          subject_id = replace(subject_id, grepl("cohort02_group1_OF2", actfilename) & subject_id == "NO ANIMAL", "KAL056")
-         )
+  )
 
 # KAL056 IS ASSIGNED BC THE BOX 8 FROM ACTFILENAME './cohort02/cohort02_group5_OF2_raw_data.ACT' WAS NOT WORKING
 
@@ -767,7 +724,7 @@ openfieldtask_raw_df <- openfieldtask_raw_df %>%
 openfieldtask_raw_df <- openfieldtask_raw_df %>% 
   mutate(subject_id = replace(subject_id, grepl("cohort03_subject_101_102_105_106_OF2_raw_data.ACT", actfilename) & subject_id == "NOANIMAL" & cage == 5, "KAL106" ),
          subject_id = replace(subject_id, grepl("cohort03_subject_91_to_98_except96_OF1_raw_data.ACT", actfilename) & is.na(subject_id) & cage == 6, "KAL096" )) ## assigning despite NA (NOT CONFIRMED WITH KALIVAS TEAM)
-  
+
 
 # # note: the raw "total" summary stats are created in QC_PLOT_RAW_VS_EXCEL.R
 openfieldtask_raw_df_total <- openfieldtask_raw_df %>% group_by(subject_id, cohort, filename, actfilename, cage, date, time) %>%
@@ -786,7 +743,7 @@ openfieldtask_raw_df_total <- openfieldtask_raw_df %>% group_by(subject_id, coho
   group_by(labanimalid) %>% 
   mutate(session = ifelse(dplyr::row_number(labanimalid) == 1, "before_SA", "after_SA")) %>% 
   ungroup() %>% select(-c("time", "cage", "filename"))
-  
+
 openfieldtask_raw_df_total %>% subset(!grepl("KAL\\d+", labanimalid))
 # openfieldtask_raw_df_total %>% add_count(labanimalid) %>% subset(n == 2) %>% distinct(labanimalid, cohort) %>% select(cohort) %>% table()
 
