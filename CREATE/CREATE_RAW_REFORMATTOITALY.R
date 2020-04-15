@@ -90,12 +90,16 @@ selfadmin_escalation_12h <- lga_merge %>%
   subset(day_session %in% c(1:3, 10:12)) %>% 
   mutate(day_session_type = ifelse(day_session %in% c(1:3), "early", "late")) %>% 
   group_by(cohort, subjectid, day_session_type) %>% 
-  summarize(avg_intake = mean(intake)) %>% 
-  ungroup()
+  summarize(avg_intake_12h = mean(intake)) %>% 
+  ungroup() %>% 
+  spread(day_session_type, avg_intake_12h) %>% 
+  transmute(cohort = cohort, subjectid = subjectid, 
+            escalation_12h = late - early)
 selfadmin_escalation_12h %>% select(cohort) %>% table()
 
 ### deal with missing subjects later on XX 
-
+lga_merge %>% subset(!subjectid %in% c("KALNA", "KAL000")) %>% dim # 2021
+  
 
 
 ## TO GET : ESCALATION OF HEROIN INTAKE DURING THE FIRST HOUR OF SA
@@ -124,72 +128,14 @@ processedSdata_lga <- lapply(split(lga_Sarray, cumsum(1:nrow(lga_Sarray) %in% lg
   return(Sarray_df)
 }) %>% rbindlist(fill = T) %>% 
   mutate(filename = as.character(filename))
-processedSdata_lga <- cbind(processedSdata_lga, lga_subjects[,"subjectid"])
-# processedSdata_lga %>% subset(is.na(intake))
-## PICK UP FROM HERE
 
-
-## substitute this one: "./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 13"
-## substitute this one: "./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 8"
-
-lga_subset_df <- lapply("./Cohort 2/Long-access self-administration/MUSC_Cohort 2_ L room_LgA day 8", function(x){
-  Sarray <- fread(paste0("awk '/S:/{flag=1}/Start Date:|U:|^$/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
-  Sarray$filename <- x
-  Sarray <- Sarray %>%
-    separate(V1, into = c("V2", "V3", "V4", "V5", "V6", "V7"), sep = "[[:space:]]+") %>% subset(V2=="S:"&lead(V2)=="S:"|grepl("^\\d", V2))
-  return(Sarray)
-}) %>% rbindlist(fill = T)
-lga_Sarray_c02_lga13_indices <- grep("^[S0]:$", lga_subset_df$V2)
-
-processedSdata_lga <- lapply(split(lga_subset_df, cumsum(1:nrow(lga_subset_df) %in% lga_Sarray_c02_lga13_indices)), function(x){
-  Sarray <- as.vector(t(data.matrix(x)))
-  Sarray_df <- data.frame(Sarray = Sarray,
-                          filename = x$filename[1]) %>% 
-    group_by(filename) %>% 
-    summarize(intake = ifelse(sum(Sarray, na.rm = T) == 0, NA, length(Sarray[which(Sarray<3600)]))) %>% 
-    ungroup()
-  return(Sarray_df)
-}) %>% rbindlist(fill = T) %>% 
-  mutate(filename = as.character(filename))
-
-
-processedSdata_lga %>% 
-  group_by(filename) %>% 
-  add_count(filename) %>% 
-  merge(., lga_subjects %>% 
-          count(filename), by = "filename") %>%   
-  rename("numberofSarrays" = "n.x", "numberofsubjects" = "n.y") %>% 
-  select(numberofSarrays, numberofsubjects, filename) %>% 
-  group_by(filename) %>% 
-  slice(1) %>% 
-  dplyr::filter(numberofSarrays != numberofsubjects) 
-
-
-names(processedSdata_lga) <- lga_subjects$subjectid
-processedAdata_expr_wide <- processedAdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, leverpresses)
-
-
-
-lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fill = T) %>% 
-  dplyr::select(-c(V2, V6)) %>% 
-  dplyr::rename("rownum" = "V1",
-                "inactive_lever" = "V3",
-                "active_lever" = "V4", 
-                "infusions" = "V5") %>% 
-  mutate(rownum = gsub("-", "", rownum) %>% as.numeric) %>% 
-  arrange(filename, rownum) %>% 
-  group_by(filename) %>% 
-  mutate(numseq = row_number()) %>% 
-  ungroup() 
-lga_Barray %>% naniar::vis_miss()
-
-if(nrow(lga_Barray) == nrow(lga_subjects)){
-  lga_merge <- merge(lga_subjects, lga_Barray) %>% 
+if(nrow(processedSdata_lga) == nrow(lga_subjects)){
+  processedSdata_lga <- cbind(processedSdata_lga, lga_subjects[,"subjectid"]) %>% 
     mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
            subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")))
-  print("LGA_merge object created")
+  print("LGA_S_merge object created")
 } else {
-  lga_Barray %>% 
+  processedSdata_lga %>% 
     group_by(filename) %>% 
     add_count(filename) %>% 
     merge(., lga_subjects %>% 
@@ -199,32 +145,57 @@ if(nrow(lga_Barray) == nrow(lga_subjects)){
     group_by(filename) %>% 
     slice(1) %>% 
     dplyr::filter(numberofBarrays != numberofsubjects) 
-  print("LGA DATA COULD NOT BE JOINED")}
+  print("LGA S DATA COULD NOT BE JOINED")}
 
-lga_merge %>% naniar::vis_miss() #complete cases all 1786 observations
 
-# to deal with missing subjects using boxes lga_merge %>% subset(subjectid == "KAL000")
-lga_merge_fix <- lga_merge %>% subset(subjectid == "KAL000"&grepl("Cohort 2_ L room_LgA day 13", filename)) %>% 
-  # mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  cbind(., allcohorts_df_nodupes %>% subset(grepl("Cohort 2_ L room_LgA day 13", filename)) %>% select(box)) %>% 
-  mutate(session = gsub(".*day ", "", filename), 
-         self_administration_room = sub(".*_ (.*?)room.*", "\\1", filename) %>% str_trim(),
-         cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0")) %>% 
-  left_join(., kalivas_lga_allcohorts_excel_processed[, c("internal_id", "self_administration_box", "session", "self_administration_room", "cohort_number")], 
-            by = c("box" = "self_administration_box", "session", "self_administration_room", "cohort" = "cohort_number"))
+processedSdata_lga %>% subset(!subjectid %in% c("KALNA", "KAL000")) %>% dim #2021
+# processedSdata_lga %>% subset(is.na(intake))
 
-lga_allsubjects <- left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  left_join(., allcohorts_df_nodupes[, c("date", "filename", "box")], by = "filename") %>% 
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
-  distinct() %>% 
-  arrange(internal_id, date) %>% 
-  select(-c(numseq, rownum, dob)) %>%  ## only the 80 in the mapping excel information
-  mutate(session = gsub(".*day ", "", filename),
-         date = as.character(date)) 
+selfadmin_escalation_1h <- processedSdata_lga %>% 
+  mutate(cohort = str_match(filename, "/(.*?)/")[,2], 
+         cohort = str_extract(cohort, "\\d+"),
+         filename = gsub(".*MUSC_", "", filename)) %>% 
+  arrange(cohort, subjectid, filename) %>% 
+  subset(!subjectid %in% c("KALNA", "KAL000")) %>% 
+  mutate(day_session = str_match(filename, "LgA (day )?\\d+")[,1] %>% parse_number()) %>% 
+  subset(day_session %in% c(1:3, 10:12)) %>% 
+  mutate(day_session_type = ifelse(day_session %in% c(1:3), "early", "late")) %>% 
+  group_by(cohort, subjectid, day_session_type) %>% 
+  summarize(avg_intake_1h = mean(intake)) %>% 
+  ungroup() %>% 
+  spread(day_session_type, avg_intake_1h) %>% 
+  transmute(cohort = cohort, subjectid = subjectid, 
+            escalation_1h = late - early)
+selfadmin_escalation_1h %>% select(cohort) %>% table()
 
-lga_allsubjects %>% naniar::vis_miss()
+## TO GET: TOTAL HEROIN CONSUMPTION (MICROGRAM / KG)
+selfadmin_consumption_total <- lga_merge %>% 
+  mutate(cohort = str_match(filename, "/(.*?)/")[,2], 
+         cohort = str_extract(cohort, "\\d+"),
+         filename = gsub(".*MUSC_", "", filename),
+         intake = infusions * 20) %>% 
+  # day_session = gsub(".*day", "", filename)) %>% 
+  select(cohort, subjectid, filename, infusions, intake) %>% 
+  arrange(cohort, subjectid, filename) %>% 
+  subset(!subjectid %in% c("KALNA", "KAL000")) %>% 
+  mutate(day_session = str_match(filename, "LgA (day )?\\d+")[,1] %>% parse_number()) %>% 
+  # subset(day_session %in% c(1:3, 10:12)) %>% 
+  # mutate(day_session_type = ifelse(day_session %in% c(1:3), "early", "late")) %>% 
+  group_by(cohort, subjectid) %>% 
+  summarize(avg_intake_total = mean(intake)) %>% 
+  ungroup()
+
+
+## TO GET: TOTAL HEROIN CONSUMPTION (MICROGRAM ; MULTIPLY BY KG)
+## XX 
+
+
+## 
+
+
+### PLOT SELF ADMIN
+selfadmin_raw <- merge(selfadmin_escalation_12h, selfadmin_escalation_1h, by = c("cohort", "subjectid")) %>% 
+  left_join(., selfadmin_consumption_total, by = c("cohort", "subjectid"))
 
 
 
