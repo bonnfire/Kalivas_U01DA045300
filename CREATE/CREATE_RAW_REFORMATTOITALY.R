@@ -197,17 +197,37 @@ selfadmin_consumption_total <- lga_merge %>%
 selfadmin_raw_and_italy <- merge(selfadmin_escalation_12h, selfadmin_escalation_1h, by = c("cohort", "subjectid")) %>% 
   left_join(., selfadmin_consumption_total, by = c("cohort", "subjectid")) %>% 
   mutate(u01 = "us") %>% 
+  left_join(., WFU_Kalivas_test_df[, c("labanimalid", "sex")], by = c("subjectid"="labanimalid")) %>%  ## check if %>% subset(is.na(sex)) is empty
   bind_rows(., Italy_lgapr_C01_05_xl %>% 
-              select(cohort, transponder_number, escalation_of_heroin_intake_12h_in_µg_kg, escalation_of_heroin_intake_during_the_1st_hour_of_sa_in_µg_kg, total_heroin_consumprion_µg_kg) %>% #, total_heroin_consumption_µg when the total is extracted
+              select(cohort, transponder_number, escalation_of_heroin_intake_12h_in_µg_kg, escalation_of_heroin_intake_during_the_1st_hour_of_sa_in_µg_kg, total_heroin_consumprion_µg_kg, sex) %>% #, total_heroin_consumption_µg when the total is extracted
               rename("subjectid" = "transponder_number",
                      "escalation_12h" = "escalation_of_heroin_intake_12h_in_µg_kg",
                      "escalation_1h" = "escalation_of_heroin_intake_during_the_1st_hour_of_sa_in_µg_kg",
                      "avg_intake_total" = "total_heroin_consumprion_µg_kg") %>% 
-              mutate_at(vars(-one_of("cohort", "subjectid")), as.numeric) %>% 
+              mutate_at(vars(-one_of("cohort", "subjectid", "sex")), as.numeric) %>% 
               mutate(u01 = "italy"))
 
 selfadmin_raw_and_italy <- selfadmin_raw_and_italy %>% 
   subset(!(subjectid == "KAL169"&cohort=="4"))
+
+ggplot(selfadmin_raw_and_italy, aes(x = escalation_12h)) + 
+  geom_histogram() + 
+  facet_grid(~ u01 + sex) + 
+  labs(title = "Kalivas Site Differences for Escalation 12h by Sex")
+ggplot(selfadmin_raw_and_italy, aes(x = escalation_12h)) + 
+  geom_histogram() + 
+  facet_grid(~ u01) + 
+  labs(title = "Kalivas Site Differences for Escalation 12h")
+ggplot(selfadmin_raw_and_italy, aes(x = escalation_1h)) + 
+  geom_histogram() + 
+  facet_grid(~ u01 + sex) + 
+  labs(title = "Kalivas Site Differences for Escalation 1h by Sex")
+ggplot(selfadmin_raw_and_italy, aes(x = escalation_1h)) + 
+  geom_histogram() + 
+  facet_grid(~ u01) + 
+  labs(title = "Kalivas Site Differences for Escalation 1h")
+
+
 
 
 # *****************
