@@ -147,6 +147,20 @@ extract_process_excel_lapply <- function(files, sheet){
 kalivas_lga_allcohorts_excel_processed <- extract_process_excel_lapply(all_excel_fnames, "LgA_SA") %>% rbindlist() %>% 
   select(-`...8`)
 
+
+
+## extracting data for escalation of intake_first hour.xlsx 
+setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300")
+escalation_firsthour_xl <- u01.importxlsx_cT("Escalation of intake_first hour.xlsx")[[1]] %>% 
+  clean_names() %>% 
+  rename_all(
+    list(
+        ~stringr::str_replace_all(., "lg_a", "lga")
+    ))
+
+
+
+
 # *****************
 ##  PR_test
 

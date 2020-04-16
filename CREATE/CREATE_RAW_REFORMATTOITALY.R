@@ -206,6 +206,8 @@ selfadmin_raw_and_italy <- merge(selfadmin_escalation_12h, selfadmin_escalation_
               mutate_at(vars(-one_of("cohort", "subjectid")), as.numeric) %>% 
               mutate(u01 = "italy"))
 
+selfadmin_raw_and_italy <- selfadmin_raw_and_italy %>% 
+  subset(!(subjectid == "KAL169"&cohort=="4"))
 
 
 # *****************
