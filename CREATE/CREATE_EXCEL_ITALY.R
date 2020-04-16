@@ -83,7 +83,10 @@ Italy_tailflick_C01_05_xl <- xl_to_long_df(Italy_tailflick_C01_05_xl)
 #####  LONG ACCESS & PROGRESSIVE RATIO
 Italy_lgapr_C01_05_xl <- Italy_excel_C01_05 %>% 
   select(matches("identity|self_admin"))
-Italy_lgapr_C01_05_xl <- xl_to_long_df(Italy_lgapr_C01_05_xl)
+# Italy_lgapr_C01_05_xl <- xl_to_long_df(Italy_lgapr_C01_05_xl)
+names(Italy_lgapr_C01_05_xl) <- Italy_lgapr_C01_05_xl[1,] %>% make_clean_names()
+Italy_lgapr_C01_05_xl <- Italy_lgapr_C01_05_xl[-1,] %>% 
+  mutate(cohort = parse_number(cohort) %>% as.character) 
 
 
 #####  EXTINCTION PRIME XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
