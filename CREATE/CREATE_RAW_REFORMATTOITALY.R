@@ -123,7 +123,7 @@ processedSdata_lga <- lapply(split(lga_Sarray, cumsum(1:nrow(lga_Sarray) %in% lg
   Sarray_df <- data.frame(Sarray = Sarray,
                           filename = x$filename[1]) %>% 
     group_by(filename) %>% 
-    summarize(intake = ifelse(sum(Sarray, na.rm = T) == 0, NA, length(Sarray[which(Sarray<3600)]))) %>% 
+    summarize(infusions = ifelse(sum(Sarray, na.rm = T) == 0, NA, length(Sarray[which(Sarray<3600)]))) %>% 
     ungroup()
   return(Sarray_df)
 }) %>% rbindlist(fill = T) %>% 
@@ -154,7 +154,9 @@ processedSdata_lga %>% subset(!subjectid %in% c("KALNA", "KAL000")) %>% dim #202
 selfadmin_escalation_1h <- processedSdata_lga %>% 
   mutate(cohort = str_match(filename, "/(.*?)/")[,2], 
          cohort = str_extract(cohort, "\\d+"),
-         filename = gsub(".*MUSC_", "", filename)) %>% 
+         filename = gsub(".*MUSC_", "", filename),
+         intake = infusions * 20) %>% 
+  select(-infusions) %>% 
   arrange(cohort, subjectid, filename) %>% 
   subset(!subjectid %in% c("KALNA", "KAL000")) %>% 
   mutate(day_session = str_match(filename, "LgA (day )?\\d+")[,1] %>% parse_number()) %>% 
@@ -169,6 +171,7 @@ selfadmin_escalation_1h <- processedSdata_lga %>%
 selfadmin_escalation_1h %>% select(cohort) %>% table()
 
 ## TO GET: TOTAL HEROIN CONSUMPTION (MICROGRAM / KG)
+#   refers to total consumption expressed in µg/kg during the first 12 days of self-administration
 selfadmin_consumption_total <- lga_merge %>% 
   mutate(cohort = str_match(filename, "/(.*?)/")[,2], 
          cohort = str_extract(cohort, "\\d+"),
@@ -179,10 +182,10 @@ selfadmin_consumption_total <- lga_merge %>%
   arrange(cohort, subjectid, filename) %>% 
   subset(!subjectid %in% c("KALNA", "KAL000")) %>% 
   mutate(day_session = str_match(filename, "LgA (day )?\\d+")[,1] %>% parse_number()) %>% 
-  # subset(day_session %in% c(1:3, 10:12)) %>% 
+  subset(day_session %in% c(1:12)) %>%
   # mutate(day_session_type = ifelse(day_session %in% c(1:3), "early", "late")) %>% 
   group_by(cohort, subjectid) %>% 
-  summarize(avg_intake_total = mean(intake)) %>% 
+  summarize(intake_total = sum(intake)) %>% 
   ungroup()
 
 
@@ -203,7 +206,7 @@ selfadmin_raw_and_italy <- merge(selfadmin_escalation_12h, selfadmin_escalation_
               rename("subjectid" = "transponder_number",
                      "escalation_12h" = "escalation_of_heroin_intake_12h_in_µg_kg",
                      "escalation_1h" = "escalation_of_heroin_intake_during_the_1st_hour_of_sa_in_µg_kg",
-                     "avg_intake_total" = "total_heroin_consumprion_µg_kg") %>% 
+                     "intake_total" = "total_heroin_consumprion_µg_kg") %>% 
               mutate_at(vars(-one_of("cohort", "subjectid", "sex")), as.numeric) %>% 
               mutate(u01 = "italy"))
 
@@ -218,6 +221,7 @@ ggplot(selfadmin_raw_and_italy, aes(x = escalation_12h)) +
   geom_histogram() + 
   facet_grid(~ u01) + 
   labs(title = "Kalivas Site Differences for Escalation 12h")
+
 ggplot(selfadmin_raw_and_italy, aes(x = escalation_1h)) + 
   geom_histogram() + 
   facet_grid(~ u01 + sex) + 
@@ -226,6 +230,17 @@ ggplot(selfadmin_raw_and_italy, aes(x = escalation_1h)) +
   geom_histogram() + 
   facet_grid(~ u01) + 
   labs(title = "Kalivas Site Differences for Escalation 1h")
+
+ggplot(selfadmin_raw_and_italy, aes(x = intake_total)) + 
+  geom_histogram() + 
+  facet_grid(~ u01 + sex) + 
+  labs(title = "Kalivas Site Differences for Total Intake by Sex")
+ggplot(selfadmin_raw_and_italy, aes(x = intake_total)) + 
+  geom_histogram() + 
+  facet_grid(~ u01) + 
+  labs(title = "Kalivas Site Differences for Total Intake")
+
+
 
 
 

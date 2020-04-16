@@ -155,8 +155,16 @@ escalation_firsthour_xl <- u01.importxlsx_cT("Escalation of intake_first hour.xl
   clean_names() %>% 
   rename_all(list(~stringr::str_replace_all(., "lg_a", "lga"))) %>% 
   left_join(., WFU_Kalivas_test_df[, c("rfid", "labanimalid")], by = c("transponder_number" = "rfid"))
+escalation_firsthour_xl_esca <- escalation_firsthour_xl %>% 
+  mutate(mean_firstsessions = rowMeans(.[grep("lga_[123]$", names(.))], na.rm =TRUE),
+         mean_latersessions = rowMeans(.[grep("lga_1[012]$", names(.))], na.rm =TRUE),
+         escalation = mean_latersessions - mean_firstsessions) %>% 
+  select(-matches("mean|lga"))
 
+ggplot(escalation_firsthour_xl_esca, aes(x = escalation)) + 
+  geom_histogram()
 
+mutate_at(vars(-matches("rfid")), as.numeric) %>% 
 
 
 # *****************
