@@ -194,7 +194,8 @@ selfadmin_consumption_total <- lga_merge %>%
 
 
 ## TO GET: TOTAL HEROIN CONSUMPTION (MICROGRAM ; MULTIPLY BY KG)
-## XX 
+## NOT NEEDED ANYMORE 
+# "Nazza and I discussed that and we aren’t going to do that anymore, and are instead going to keep those two measure in ug/kg. The rationale is that we’re looking at individual variation and by converting to just ug we are essentially un-normalizing the data." -Brittany 04/27/2020
 
 
 ## 

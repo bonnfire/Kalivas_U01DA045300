@@ -52,14 +52,13 @@ kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames, "info_from_breede
   rbindlist()
 
 
-### PICK UP HERE
 
 extract_kalivas_weights <- function(files, sheet){
   data_weight_list <-  lapply(files, function(i) {
     data_allsheets = u01.importxlsx(i)
     data_weight <- data_allsheets[[sheet]] # made to extract any of the sheets
     #data_weight <- data_allsheets$body_weights # used for troubleshooting
-    names(data_weight) <- c(data_weight[1, 1:7], data_weight[2, 8:ncol(data_weight)]) %>% tolower()
+    names(data_weight) <- c(names(data_weight)[1:7], data_weight[1, 8:ncol(data_weight)]) %>% tolower()
     
     # datecols <- c("dob", "dow", "shipmentdate")
     # datefunction <- function(x){
@@ -69,7 +68,7 @@ extract_kalivas_weights <- function(files, sheet){
     # }
     # 
     
-    data_weight <- data_weight[-c(1:2),] %>%
+    data_weight <- data_weight[-1,] %>%
       gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -comment, -resolution) %>% 
       rename("cohort" = "cohort_number",
              "rfid" = "microchip") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
@@ -77,8 +76,8 @@ extract_kalivas_weights <- function(files, sheet){
       separate(var, into = c("date", "date_comment"), sep = "_", extra = "merge") %>% # warning messages about missing pieces filling with NA is expected and wanted
       mutate(date = ifelse(grepl("^\\d{5}$", date), as.POSIXct(as.numeric(date) * (60*60*24), origin="1899-12-30", tz="UTC", format="%Y-%m-%d") %>% as.character,
                            as.character(date)), 
-             date = ifelse(grepl("^\\d{,2}/", date), lubridate::mdy(date) %>% as.character, as.character(date))) # warning messages about na's from the dates also expected
-    
+             date = ifelse(grepl("^\\d{,2}/", date), lubridate::mdy(date) %>% as.character, as.character(date))) %>% # warning messages about na's from the dates also expected
+      rename("weight" = "value")
     return(data_weight)
     
   })
@@ -136,7 +135,8 @@ extract_process_excel_lapply <- function(files, sheet){
     
     df <- left_join(df_values, df_sessiondosage, by = "session") %>%
       mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
-      rename("rfid" = "microchip")
+      rename("rfid" = "microchip", 
+             "cohort" = "cohort_number")
     
     return(df)
     
@@ -144,8 +144,8 @@ extract_process_excel_lapply <- function(files, sheet){
   return(data_breeder_list)
 }
 
-kalivas_lga_allcohorts_excel_processed <- extract_process_excel_lapply(all_excel_fnames, "LgA_SA") %>% rbindlist() %>% 
-  select(-`...8`)
+kalivas_lga_allcohorts_excel_processed <- extract_process_excel_lapply(all_excel_fnames, "LgA_SA") %>% rbindlist() 
+# find how many individual rfids in each cohort --- kalivas_lga_allcohorts_excel_processed %>% distinct(rfid, cohort) %>% count(cohort)
 
 
 
@@ -164,7 +164,7 @@ escalation_firsthour_xl_esca <- escalation_firsthour_xl %>%
 ggplot(escalation_firsthour_xl_esca, aes(x = escalation)) + 
   geom_histogram()
 
-mutate_at(vars(-matches("rfid")), as.numeric) %>% 
+# mutate_at(vars(-matches("rfid")), as.numeric) %>% 
 
 
 # *****************
@@ -257,7 +257,8 @@ extract_process_excel_expr_lapply <- function(files, sheet){
     
     df <- cbind(df_values, df_sessiondosage) %>%
       mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
-      rename("rfid" = "microchip")
+      rename("rfid" = "microchip",
+             "cohort" = "cohort_number")
     
     return(df)
     
