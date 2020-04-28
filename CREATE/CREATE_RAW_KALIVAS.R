@@ -335,7 +335,7 @@ readM_O <- function(x){
 }
 
 
-pr_Parray <- lapply(allcohorts_pr_fnames[1], readParray) %>% rbindlist(fill = T) %>%    # since this array is the same for all files; you only need one copy and then use the  O value to extract
+pr_Parray <- lapply(allcohorts_pr_fnames, readParray) %>% rbindlist(fill = T) %>% # since this array is the same for all files; you only need one copy and then use the  O value to extract
   select(-V1) %>%
   data.matrix() %>%
   t() %>%
@@ -385,15 +385,21 @@ pr_allsubjects <- merge(pr_O_vals[c("pr_step", "subjectid")], pr_M_vals[c("total
   mutate(subjectid = as.character(subjectid),
     subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
   # mutate(cohort = str_match(filename, "/(.*?)/")[,2] %>% gsub("^.*([0-9]+).*", "\\1", .) %>% str_pad(., 2, pad = "0")) %>%
-  left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>%
+  left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>%
+  # left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>%
   mutate(filename = gsub(".*MUSC_", "", filename)) %>%
-  left_join(., allcohorts_df_nodupes[, c("startdate", "filename")]) %>%
-  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (startdate - dob) %>% as.numeric %>% round) %>%
+  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>%
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) %>%
+         # cohort = parse_number(filename) %>% as.character) %>%
+         # ,
+         # experimentage = (startdate - dob) %>% as.numeric %>% round) %>%
   distinct() %>%
-  arrange(cohort_number, internal_id) %>%
-  select(-c("dob")) %>%
-  select(cohort_number, sex, rfid, internal_id, startdate, everything())
+  # arrange(cohort, subjectid) %>% 
+  arrange(cohort, internal_id) %>%
+  # select(-c("dob")) %>%
+  # select(cohort_number, sex, rfid, internal_id, startdate, everything())
+  select(cohort, internal_id, date, pr_step, infusions, total_session_minutes, active_lever, inactive_lever, current_ratio, filename) %>% 
+  naniar::replace_with_na_if(is.numeric, grepl("die|dead", comments, ignore.case = T))
 
 # *****************
 ##  Extinction_prime_test (Is it primed reinstatement?)
