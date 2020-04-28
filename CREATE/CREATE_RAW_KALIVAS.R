@@ -398,9 +398,9 @@ pr_allsubjects <- merge(pr_O_vals[c("pr_step", "subjectid")], pr_M_vals[c("total
   arrange(cohort, internal_id) %>%
   # select(-c("dob")) %>%
   # select(cohort_number, sex, rfid, internal_id, startdate, everything())
-  select(cohort, internal_id, date, pr_step, infusions, total_session_minutes, active_lever, inactive_lever, current_ratio, filename) %>% 
-  naniar::replace_with_na_if(is.numeric, grepl("die|dead", comments, ignore.case = T))
-
+  select(cohort, internal_id, date, pr_step, infusions, total_session_minutes, active_lever, inactive_lever, current_ratio, filename, everything()) %>% 
+  # naniar::replace_with_na_if(is.numeric, grepl("die|dead", comments, ignore.case = T))
+  mutate_if(is.numeric, ~replace(., grepl("die|dead", comments, ignore.case = T)|grepl("remove", resolution, ignore.case=T), NA))
 # *****************
 ##  Extinction_prime_test (Is it primed reinstatement?)
 
