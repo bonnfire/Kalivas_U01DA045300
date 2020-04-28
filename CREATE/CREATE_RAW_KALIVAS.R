@@ -385,22 +385,30 @@ pr_allsubjects <- merge(pr_O_vals[c("pr_step", "subjectid")], pr_M_vals[c("total
   mutate(subjectid = as.character(subjectid),
     subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
   # mutate(cohort = str_match(filename, "/(.*?)/")[,2] %>% gsub("^.*([0-9]+).*", "\\1", .) %>% str_pad(., 2, pad = "0")) %>%
-  left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>%
+  left_join(., kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], by = c("subjectid"="internal_id")) %>%
   # left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>%
+  rename("cohort_xl" = "cohort") %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>%
   left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>%
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) %>%
-         # cohort = parse_number(filename) %>% as.character) %>%
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         cohort = parse_number(filename) %>% as.character %>% str_pad(., 2, side = "left", pad = "0")) %>%
          # ,
          # experimentage = (startdate - dob) %>% as.numeric %>% round) %>%
   distinct() %>%
-  # arrange(cohort, subjectid) %>% 
-  arrange(cohort, internal_id) %>%
+  arrange(cohort, subjectid) %>%
   # select(-c("dob")) %>%
   # select(cohort_number, sex, rfid, internal_id, startdate, everything())
-  select(cohort, internal_id, date, pr_step, infusions, total_session_minutes, active_lever, inactive_lever, current_ratio, filename, everything()) %>% 
+  select(cohort, subjectid, date, pr_step, infusions, total_session_minutes, active_lever, inactive_lever, current_ratio, filename, everything()) %>% 
   # naniar::replace_with_na_if(is.numeric, grepl("die|dead", comments, ignore.case = T))
   mutate_if(is.numeric, ~replace(., grepl("die|dead", comments, ignore.case = T)|grepl("remove", resolution, ignore.case=T), NA))
+
+## since cohort 5 excel data is not prepared yet, this code will take care of the columns once they have been uploaded
+if(pr_allsubjects %>% subset(cohort != cohort_xl|is.na(cohort_xl)) %>% nrow() == 0){
+  pr_allsubjects <- pr_allsubjects %>% select(-c("cohort_xl"))
+  print("COLUMN COHORT_XL HAS BEEN DROPPED FROM PR DATA")
+}
+
+
 # *****************
 ##  Extinction_prime_test (Is it primed reinstatement?)
 
