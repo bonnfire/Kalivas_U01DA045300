@@ -53,6 +53,30 @@ xl_to_long_df <- function(x){
 }
 
 
+xl_to_long_df_2 <- function(x){
+  names(x) <- x[1,] %>% make_clean_names()
+  
+  if(any(grepl("_\\d", names(x)))){
+    x <- x[-1,] %>% 
+      gather(var, value, -transponder_number, -animal_id_given_by_breeder, -animal_id_given_by_behav_unit, -sex, -coat_color, -heroin_saline_yoked, -loco_index, -cohort) %>% 
+      extract(var, c("measurement", "session"), "(.*)(\\d)") %>% 
+      mutate(session = ifelse(session == 1, "before_SA", "after_SA"),
+             value = format(round(as.numeric(value), 2), nsmall = 2),
+             value = as.numeric(value),
+             cohort = str_pad(parse_number(cohort), 2, "left", "0"))
+  }
+  else{
+    x <- x[-1,] %>% 
+      gather(var, value, -transponder_number, -animal_id_given_by_breeder, -animal_id_given_by_behav_unit, -sex, -coat_color, -heroin_saline_yoked, -loco_index, -cohort) %>% 
+      extract(var, c("measurement", "session"), "(.*)_(.*)") %>% 
+      mutate(value = format(round(as.numeric(value), 2), nsmall = 2),
+             value = as.numeric(value),
+             cohort = str_pad(parse_number(cohort), 2, "left", "0"))
+  }
+  return(x)
+}
+
+
 # ############################
 # # Exp 1: ELEVATED PLUS MAZE
 # ############################
@@ -95,6 +119,9 @@ Italy_lgapr_C01_05_xl <- Italy_lgapr_C01_05_xl[-1,] %>%
 Italy_expr_C01_05_xl <- Italy_excel_C01_05 %>% 
   select(matches("identity|extinction"))
 Italy_expr_C01_05_xl <- xl_to_long_df(Italy_expr_C01_05_xl)
+
+
+expr_allsubjects %>% pivot_wider(names_from = lever, values_from = c(context, extinction_before_priming, prime)) %>% select(-(matches("_NA$"))) %>% head(2)
 
 
 #####  EXTINCTION XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

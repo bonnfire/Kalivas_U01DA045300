@@ -427,14 +427,10 @@ expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>
          prime = hour_5 + hour_6) %>% 
   select(-matches("hour")) 
 
-expr_allsubjects %>% pivot_wider(names_from = lever, values_from = c(context, extinction_before_priming, prime)) %>% select(-(matches("_NA$")))
-%>% 
-  spread(., key = "lever", value = "measurements", context:prime, -cohort, -sex, -rfid, -internal_id, -date, -comments, -resolution)
-expr_allsubjects %>% naniar::vis_miss()
-
-
 ############################## PLOTS #########################################3
 withinsession_raw_and_italy <- expr_allsubjects %>% 
+  pivot_wider(names_from = lever, values_from = c(context, extinction_before_priming, prime)) %>% 
+  select(-(matches("_NA$")))
   rename("")
 
 # *****************
