@@ -42,19 +42,6 @@ Italy_excel_C01_05 <- Italy_excel_C01_05[-1, ]
 # function to use for all exps below
 xl_to_long_df <- function(x){
   names(x) <- x[1,] %>% make_clean_names()
-  x <- x[-1,] %>% 
-    gather(var, value, -transponder_number, -animal_id_given_by_breeder, -animal_id_given_by_behav_unit, -sex, -coat_color, -heroin_saline_yoked, -loco_index, -cohort) %>% 
-    extract(var, c("measurement", "session"), "(.*)(\\d)") %>% 
-    mutate(session = ifelse(session == 1, "before_SA", "after_SA"),
-           value = format(round(as.numeric(value), 2), nsmall = 2),
-           value = as.numeric(value),
-           cohort = str_pad(parse_number(cohort), 2, "left", "0"))
-  return(x)
-}
-
-
-xl_to_long_df_2 <- function(x){
-  names(x) <- x[1,] %>% make_clean_names()
   
   if(any(grepl("_\\d", names(x)))){
     x <- x[-1,] %>% 
@@ -73,6 +60,8 @@ xl_to_long_df_2 <- function(x){
              value = as.numeric(value),
              cohort = str_pad(parse_number(cohort), 2, "left", "0"))
   }
+  x <- x %>% 
+    subset(!is.na(transponder_number))
   return(x)
 }
 

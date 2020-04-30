@@ -427,12 +427,27 @@ expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>
          prime = hour_5 + hour_6) %>% 
   select(-matches("hour")) 
 
-############################## PLOTS #########################################3
-withinsession_raw_and_italy <- expr_allsubjects %>% 
-  pivot_wider(names_from = lever, values_from = c(context, extinction_before_priming, prime)) %>% 
-  select(-(matches("_NA$")))
-  rename("")
+############################## PLOTS #########################################
 
+
+## keep the session for inactive vs active grouping
+withinsession_raw_and_italy <- expr_allsubjects %>% 
+  arrange(lever) %>% ## to prep the columns be in the right order before merging/binding rows
+  pivot_wider(names_from = lever, values_from = c(context, extinction_before_priming, prime)) %>% 
+  select(-(matches("_NA$"))) %>% 
+  select(-c("date", "comments", "resolution", "filename", "experimentage")) %>% 
+  mutate(heroin_saline_yoked = NA,
+         u01 = "us") %>% 
+  bind_rows(., Italy_expr_C01_05_xl %>% 
+              mutate(measurement = paste0(measurement, "_", session)) %>% 
+              select(-c("session", "animal_id_given_by_behav_unit", "loco_index", "coat_color")) %>% # most of the animal id given by behav units are marked "same as breeder" 
+              spread(measurement, value) %>% 
+              rename("rfid" = "transponder_number", 
+                     "internal_id" = "animal_id_given_by_breeder") %>% 
+              select(-heroin_saline_yoked, everything()) %>%
+              select(cohort, sex, rfid, internal_id, everything()) %>% 
+              mutate(u01 = "italy"))
+  
 # *****************
 ##  Extinction
 
