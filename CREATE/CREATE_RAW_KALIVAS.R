@@ -260,21 +260,41 @@ lga_allsubjects %>% naniar::vis_miss()
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
 allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(end date|subject|box):' ", intern = TRUE)
 
-allcohorts_df <- data.frame(enddate = allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .), 
-                            subject = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .)%>% gsub(" ", "", .),
-                            cohort = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character(),
-                            box = allcohorts %>% gsub("\r", "", .)%>% grep(".*Box:", ., value = T) %>% sub(".*Box:", "", .) %>% gsub(" ", "", .), 
-                            experiment = sapply(strsplit(allcohorts %>% gsub("\r", "", .)%>% grep(".*Date:", ., value = T), "[_]"), "[", 4) %>% 
-                              gsub("-.*", "",.) %>% 
-                              gsub("day ", "", .) %>% 
-                              gsub("ction3", "ction 3", .) %>% 
-                              gsub("Prime test", "Prime rein", .),
-                            filename = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("MUSC_(.*?):") %>% as.data.frame() %>% 
-                              select(V2) %>% unlist() %>% as.character()) %>% 
-  # arrange(subject, enddate, cohort) %>% 
-  mutate(subject = str_extract(subject, "\\d+") %>% as.numeric,
-         subject = paste0("KAL", str_pad(subject, 3, "left", "0"))) %>% 
-  rename("date" = "enddate")
+allcohorts_df <-
+  data.frame(
+    enddate = allcohorts %>% gsub("\r", "", .) %>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .),
+    subject = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .) %>% gsub(" ", "", .),
+    cohort = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("Cohort \\d+") %>% unlist() %>% as.character(),
+    box = allcohorts %>% gsub("\r", "", .) %>% grep(".*Box:", ., value = T) %>% sub(".*Box:", "", .) %>% gsub(" ", "", .),
+    experiment = sapply(strsplit(
+      allcohorts %>% gsub("\r", "", .) %>% grep(".*Date:", ., value = T),
+      "[_]"
+    ), "[", 4) %>%
+      gsub("-.*", "", .) %>%
+      gsub("day ", "", .) %>%
+      gsub("ction3", "ction 3", .) %>%
+      gsub("Prime test", "Prime rein", .),
+    filename = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("MUSC_(.*?):") %>% as.data.frame() %>%
+      select(V2) %>% unlist() %>% as.character()
+  ) %>%
+  # arrange(subject, enddate, cohort) %>%
+  mutate(
+    subject = str_extract(subject, "\\d+") %>% as.numeric,
+    subject = paste0("KAL", str_pad(subject, 3, "left", "0")),
+    self_administration_room = ifelse(
+      grepl("room", filename, ignore.case = T), 
+      sub("Cohort \\d+?_(.*?) room.*", "\\1", filename, ignore.case = T) %>% str_trim(),
+      NA
+    ),
+    comp = ifelse(
+      grepl("comp", filename, ignore.case = T),
+      sub(".*room ( )?comp(uter)? (\\d+).*", "\\3", filename) %>% str_trim(),
+      NA
+    )
+  ) %>%
+  rename("date" = "enddate")  
+  
+
 
 allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 
 

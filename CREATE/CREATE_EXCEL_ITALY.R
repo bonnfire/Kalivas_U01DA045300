@@ -32,7 +32,7 @@
 
 # assign the category of varnames 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300")
-Italy_excel_C01_05 <- u01.importxlsx("U01_UNICAM_data summary.xlsx")[[2]]
+Italy_excel_C01_05 <- u01.importxlsx("U01_UNICAM_data summary.xlsx")[[2]] ##retrieving all rats data
 names(Italy_excel_C01_05) <- Italy_excel_C01_05[1,] %>% unlist() %>% as.character() %>% 
   as.data.frame() %>% rename("names" = ".") %>% 
   fill(names) %>% unlist() %>% as.character() %>% make_clean_names()
@@ -43,7 +43,7 @@ Italy_excel_C01_05 <- Italy_excel_C01_05[-1, ]
 xl_to_long_df <- function(x){
   names(x) <- x[1,] %>% make_clean_names()
   
-  if(any(grepl("_\\d", names(x)))){
+  if(any(grepl("_\\d$", names(x)))){
     x <- x[-1,] %>% 
       gather(var, value, -transponder_number, -animal_id_given_by_breeder, -animal_id_given_by_behav_unit, -sex, -coat_color, -heroin_saline_yoked, -loco_index, -cohort) %>% 
       extract(var, c("measurement", "session"), "(.*)(\\d)") %>% 
@@ -102,23 +102,20 @@ Italy_lgapr_C01_05_xl <- Italy_lgapr_C01_05_xl[-1,] %>%
   mutate(cohort = parse_number(cohort) %>% as.character) %>% 
   subset(!is.na(transponder_number))
 
-#####  EXTINCTION PRIME XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#####  EXTINCTION PRIME 
 
-## figure how which hours maps to which? 
 Italy_expr_C01_05_xl <- Italy_excel_C01_05 %>% 
   select(matches("identity|extinction"))
 Italy_expr_C01_05_xl <- xl_to_long_df(Italy_expr_C01_05_xl)
 
+#####  EXTINCTION & CUED REINSTATEMENT
 
-expr_allsubjects %>% pivot_wider(names_from = lever, values_from = c(context, extinction_before_priming, prime)) %>% select(-(matches("_NA$"))) %>% head(2)
-
-
-#####  EXTINCTION XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-## figure how which hours maps to which? 
-Italy_expr_C01_05_xl <- Italy_excel_C01_05 %>% 
-  select(matches("identity|extinction"))
-Italy_expr_C01_05_xl <- xl_to_long_df(Italy_expr_C01_05_xl)
+Italy_excu_C01_05_xl <- Italy_excel_C01_05 %>% 
+  select(matches("identity|reinstatement"))
+Italy_excu_C01_05_xl <- xl_to_long_df(Italy_excu_C01_05_xl) %>% 
+  mutate(session = replace(session, grepl("extinction_de", measurement), "deescalation"),
+         measurement = replace(measurement, grepl("extinction_de", measurement), "extinction"))
+Italy_excu_C01_05_xl %>% naniar::vis_miss()
 
 #####  CUED REINSTATEMENT
 

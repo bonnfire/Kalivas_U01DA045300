@@ -447,7 +447,9 @@ withinsession_raw_and_italy <- expr_allsubjects %>%
               select(-heroin_saline_yoked, everything()) %>%
               select(cohort, sex, rfid, internal_id, everything()) %>% 
               mutate(u01 = "italy"))
-  
+withinsession_raw_and_italy %>% naniar::vis_miss()
+withinsession_raw_and_italy %>% 
+  subset(is.na(context_active)&is.na(context_inactive))
 # *****************
 ##  Extinction
 
@@ -490,20 +492,87 @@ ex_X <- ex_WX %>%
   rename("subjectid" = "ex_subjects$subjectid",
          "active_lever" = "value")
 
-ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")),
-         session = gsub(".*Extinction ", "", filename),
-         self_administration_room = sub(".*MUSC_Cohort \\d+?_(.*?) room.*", "\\1", filename) %>% str_trim(),
+
+## fix kalna before merging onto excel 
+ex_allsubjects <- cbind(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
+  clean_names() # since the two df's both have subjectid
+if(nrow(ex_allsubjects %>% subset(subjectid != subjectid_2)) != 0) {
+  print("Fix ex_W and ex_X cbind")
+} else {
+  ex_allsubjects <- ex_allsubjects %>%
+    select(-subjectid_2) %>%
+    mutate(
+      subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+      subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")),
+      session = gsub(".*Extinction ", "", filename),
+      self_administration_room = sub(".*MUSC_Cohort \\d+?_(.*?) room.*", "\\1", filename) %>% str_trim(),
+      comp = ifelse(
+        grepl("comp", filename, ignore.case = T),
+        sub(".*room ( )?comp(uter)? (\\d+).*", "\\3", filename) %>% str_trim(),
+        NA),
+      cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename),2,side = "left",pad = "0"),
+      filename = gsub(".*MUSC_", "", filename)
+    ) 
+  
+  
+  %>% 
+    cbind(., allcohorts_df_nodupes %>% subset(grepl("extinction", filename, ignore.case = T)) %>% arrange(filename))
+}
+%>%
+  subset(subjectid != "KAL00" &
+           inactive_lever != 0)  ## broken file
+
+
+ex_allsubjects %>%
+  mutate(
+    subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
+    subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))
+  ) %>%
+  subset(subjectid != "KAL00" &
+           inactive_lever != 0) %>% dim
+
+
+ex_allsubjects %>% 
+  group_by(filename) %>% 
+  add_count(filename) %>% 
+  merge(., allcohorts_df_nodupes %>%
+          subset(grepl("extinction", filename, ignore.case = T)) %>%
+          count(filename), by = "filename") %>%   
+  rename("numberofsubjects_ex" = "n.x", "numberofsubjects_allcohorts" = "n.y") %>% 
+  select(numberofsubjects_ex, numberofsubjects_allcohorts, filename) %>% 
+  group_by(filename) %>% 
+  slice(1) %>% 
+  dplyr::filter(numberofsubjects_ex != numberofsubjects_allcohorts) 
+
+lga_merge_fix <- lga_merge %>% subset(subjectid == "KAL000"&grepl("Cohort 2_ L room_LgA day 13", filename)) %>% 
+  # mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  cbind(., allcohorts_df_nodupes %>% subset(grepl("Cohort 2_ L room_LgA day 13", filename)) %>% select(box)) %>% 
+  mutate(session = gsub(".*day ", "", filename), 
+         self_administration_room = sub(".*_ (.*?)room.*", "\\1", filename) %>% str_trim(),
          cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0")) %>% 
-  subset(subjectid != "KAL00"&inactive_lever !=0) %>% 
-  left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
-  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
+  left_join(., kalivas_lga_allcohorts_excel_processed[, c("internal_id", "self_administration_box", "session", "self_administration_room", "cohort_number")], 
+            by = c("box" = "self_administration_box", "session", "self_administration_room", "cohort" = "cohort_number"))
+
+lga_allsubjects <- left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id")], lga_merge, by = c("internal_id"= "subjectid")) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
+  left_join(., allcohorts_df_nodupes[, c("date", "filename", "box")], by = "filename") %>% 
+  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
+         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
+  distinct() %>% 
+  arrange(internal_id, date) %>% 
+  select(-c(numseq, rownum, dob)) %>%  ## only the 80 in the mapping excel information
+  mutate(session = gsub(".*day ", "", filename),
+         date = as.character(date)) 
+
+
+ex_allsubjects <- ex_allsubjects %>% 
+  left_join(., WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")],by = c("subjectid" = "labanimalid")) %>% # get rat basic info
+  rename("cohort_raw" = "cohort.x", "cohort_xl" = "cohort.y") %>% 
+  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("subjectid" = "internal_id", "rfid")) %>% # join comments to explain missing data
   mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
   left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>% # get file date 
   mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
          experimentage = (date - dob) %>% as.numeric %>% round) 
-## JOIN THIS AFTER RESOLVING THE COHORT.X AND COHORT.Y ISSUE
 
 # %>%
 #   distinct() %>% 
@@ -611,7 +680,8 @@ rein_allsubjects %>% naniar::vis_miss()
 
 
 
-
+########## PLOTS EXTINCTION AND CUED 
+Italy_excu_C01_05_xl
 
 
 
