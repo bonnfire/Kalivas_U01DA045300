@@ -260,7 +260,7 @@ lga_allsubjects %>% naniar::vis_miss()
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
 allcohorts <- system("grep -ir -b4 'subject: ' . | grep -iE '(end date|subject|box):' ", intern = TRUE)
 
-allcohorts_df <-
+allcohorts_unfixed <-
   data.frame(
     enddate = allcohorts %>% gsub("\r", "", .) %>% grep(".*Date:", ., value = T) %>% sub(".*Date:", "", .) %>% gsub(" ", "", .),
     subject = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% sub(".*Subject:", "", .) %>% gsub(" ", "", .),
@@ -292,11 +292,34 @@ allcohorts_df <-
       NA
     )
   ) %>%
+  mutate_all(as.character) %>% 
   rename("date" = "enddate")  
   
+## check after running 
+allcohorts_unfixed %>% mutate_all(as.factor) %>% summary
+
+# fix KAL000 subject 0 
+allcohorts_unfixed %>% subset(subject == "KAL000")
+
+KAL000 <- allcohorts_unfixed %>% split(., .$cohort) %>% lapply(., function(x){
+  x <- x %>% 
+    arrange(self_administration_room, as.numeric(box)) %>% 
+    dplyr::filter(grepl("KAL000", subject)|lead(grepl("KAL000", subject))|lag(grepl("KAL000", subject))) %>% 
+    mutate(dbcomment = ifelse(grepl("KAL000", subject), "room and box info used to fill subject", NA)) %>% 
+    group_by(box) %>% mutate(subject = subject[!grepl("KAL000", subject)][1]) 
+  # %>%  # spot checking for deaths
+    # arrange(subject, start_date) 
+  return(x)
+}) %>% rbindlist(., idcol = "cohort") %>% 
+  subset(!is.na(dbcomment))
+
+allcohorts_df <- allcohorts_unfixed %>% 
+  dplyr::filter(!grepl("KAL000", subject)) %>% 
+  plyr::rbind.fill(., KAL000) # rbind with the added function of creating an NA column for nonmatching columns bw dfs A and B
 
 
-allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 
+# consider not using this bc it is hard to parse this out from extinction
+# allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 
 
 
 # library(reshape2)
