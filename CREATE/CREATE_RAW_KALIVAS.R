@@ -277,7 +277,6 @@ allcohorts_unfixed <-
     filename = allcohorts %>% gsub("\r", "", .) %>% grep(".*Subject:", ., value = T) %>% str_match("MUSC_(.*?):") %>% as.data.frame() %>%
       select(V2) %>% unlist() %>% as.character()
   ) %>%
-  # arrange(subject, enddate, cohort) %>%
   mutate(
     subject = str_extract(subject, "\\d+") %>% as.numeric,
     subject = paste0("KAL", str_pad(subject, 3, "left", "0")),
@@ -294,7 +293,9 @@ allcohorts_unfixed <-
   ) %>%
   mutate_all(as.character) %>% 
   rename("date" = "enddate") %>% 
-  mutate(experiment = ifelse(grepl("KAL", experiment), sub(".*\\d+_(.*)_KAL.*", "\\1", filename), experiment))
+  mutate(experiment = ifelse(grepl("KAL", experiment), sub(".*\\d+_(.*)_KAL.*", "\\1", filename), experiment)) %>% 
+  group_by(filename) %>% 
+  mutate(row_order = row_number())
   
 ## check after running 
 allcohorts_unfixed %>% mutate_all(as.factor) %>% summary
@@ -316,8 +317,8 @@ KAL000 <- allcohorts_unfixed %>% split(., .$cohort) %>% lapply(., function(x){
 
 allcohorts_df <- allcohorts_unfixed %>% 
   dplyr::filter(!grepl("KAL000", subject)) %>% 
-  plyr::rbind.fill(., KAL000) # rbind with the added function of creating an NA column for nonmatching columns bw dfs A and B
-
+  plyr::rbind.fill(., KAL000) %>%  # rbind with the added function of creating an NA column for nonmatching columns bw dfs A and B
+  arrange(filename, row_order)
 
 # consider not using this bc it is hard to parse this out from extinction
 # allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 

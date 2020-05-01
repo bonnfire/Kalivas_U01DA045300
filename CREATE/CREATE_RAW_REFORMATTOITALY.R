@@ -513,10 +513,13 @@ if(nrow(ex_allsubjects %>% subset(subjectid != subjectid_2)) != 0) {
       cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename),2,side = "left",pad = "0"),
       filename = gsub(".*MUSC_", "", filename)
     ) %>% 
+    arrange(filename) %>% 
     cbind(., allcohorts_df %>% subset(grepl("extinction", filename, ignore.case = T)) %>% arrange(filename))
 }
 # check that this is 0
-# ex_allsubjects %>% clean_names() %>% subset(filename != filename_2) %>% head(2)
+# ex_allsubjects %>% clean_names() %>% subset(filename != filename_2) %>% nrow
+ex_allsubjects %>% clean_names() %>% subset(subjectid != subject & !grepl("KAL(NA|000)", subjectid)) %>% dim
+# currently 94 cases
 
 
 %>%
