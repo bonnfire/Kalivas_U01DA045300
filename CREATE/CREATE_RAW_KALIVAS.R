@@ -293,7 +293,8 @@ allcohorts_unfixed <-
     )
   ) %>%
   mutate_all(as.character) %>% 
-  rename("date" = "enddate")  
+  rename("date" = "enddate") %>% 
+  mutate(experiment = ifelse(grepl("KAL", experiment), sub(".*\\d+_(.*)_KAL.*", "\\1", filename), experiment))
   
 ## check after running 
 allcohorts_unfixed %>% mutate_all(as.factor) %>% summary
