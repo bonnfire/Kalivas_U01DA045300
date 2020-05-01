@@ -516,11 +516,18 @@ if(nrow(ex_allsubjects %>% subset(subjectid != subjectid_2)) != 0) {
     arrange(filename) %>% 
     cbind(., allcohorts_df %>% subset(grepl("extinction", filename, ignore.case = T)) %>% arrange(filename))
 }
+
+
 # check that this is 0
 # ex_allsubjects %>% clean_names() %>% subset(filename != filename_2) %>% nrow
-ex_allsubjects %>% clean_names() %>% subset(subjectid != subject & !grepl("KAL(NA|000)", subjectid)) %>% dim
-# currently 94 cases
 
+# if subjectid matches subject in all non-kal000 or non-kalna cases, then remove subjectid column, remove other duplicate columns
+if(ex_allsubjects %>% clean_names() %>% subset(subjectid != subject & !grepl("KAL(NA|000)", subjectid)) %>% nrow == 0){
+  ex_allsubjects <- ex_allsubjects %>% 
+    clean_names() %>% 
+    select(-c(one_of("subjectid"), matches("_2$"))) %>% 
+    rename("subjectid" = "subject")
+}
 
 %>%
   subset(subjectid != "KAL00" &

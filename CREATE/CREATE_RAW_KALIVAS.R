@@ -289,13 +289,15 @@ allcohorts_unfixed <-
       grepl("comp", filename, ignore.case = T),
       sub(".*room ( )?comp(uter)? (\\d+).*", "\\3", filename) %>% str_trim(),
       NA
-    )
-  ) %>%
+    ),
+    roomcomp = paste0(self_administration_room, "_", comp)
+  ) %>% 
   mutate_all(as.character) %>% 
   rename("date" = "enddate") %>% 
   mutate(experiment = ifelse(grepl("KAL", experiment), sub(".*\\d+_(.*)_KAL.*", "\\1", filename), experiment)) %>% 
   group_by(filename) %>% 
-  mutate(row_order = row_number())
+  mutate(row_order = row_number()) %>% 
+  ungroup()
   
 ## check after running 
 allcohorts_unfixed %>% mutate_all(as.factor) %>% summary
@@ -305,7 +307,7 @@ allcohorts_unfixed %>% subset(subject == "KAL000")
 
 KAL000 <- allcohorts_unfixed %>% split(., .$cohort) %>% lapply(., function(x){
   x <- x %>% 
-    arrange(self_administration_room, as.numeric(box)) %>% 
+    arrange(roomcomp, as.numeric(box)) %>% 
     dplyr::filter(grepl("KAL000", subject)|lead(grepl("KAL000", subject))|lag(grepl("KAL000", subject))) %>% 
     mutate(dbcomment = ifelse(grepl("KAL000", subject), "room and box info used to fill subject", NA)) %>% 
     group_by(box) %>% mutate(subject = subject[!grepl("KAL000", subject)][1]) 
@@ -314,6 +316,9 @@ KAL000 <- allcohorts_unfixed %>% split(., .$cohort) %>% lapply(., function(x){
   return(x)
 }) %>% rbindlist(., idcol = "cohort") %>% 
   subset(!is.na(dbcomment))
+
+# goal is to reach 0 here; waiting for email confirmation about relationship bw room, box, and pc
+KAL000 %>% subset(is.na(subject)) 
 
 allcohorts_df <- allcohorts_unfixed %>% 
   dplyr::filter(!grepl("KAL000", subject)) %>% 
