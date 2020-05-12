@@ -57,6 +57,7 @@ lga_Barray <- lapply(allcohorts_longaccess_fnames, readBarray) %>% rbindlist(fil
   ungroup() 
 lga_Barray %>% naniar::vis_miss()
 
+# join the subject data with the barray
 if(nrow(lga_Barray) == nrow(lga_subjects)){
   lga_merge <- merge(lga_subjects, lga_Barray) %>% 
     mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,

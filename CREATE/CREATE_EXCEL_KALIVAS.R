@@ -16,7 +16,7 @@ u01.importxlsx <- function(xlname){
 } 
 all_excel_fnames <- list.files(full.names = T, recursive = T)
 
-# attempt to create function, but maybe we don't need to create this mapping files because WFU_Kalivas_test_df %>% sample_n(10) %>% select(cohort, labanimalid, accessid, sex, rfid) suggests that we might actually have this information from the wfu sheets
+
 extract_kalivas_mapping <- function(files, sheet){
   data_breeder_list <-  lapply(files, function(i) {
     data_allsheets = u01.importxlsx(i)
@@ -40,7 +40,11 @@ extract_kalivas_mapping <- function(files, sheet){
              "rfid" = "microchip") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
       select(-date_of_delivery) %>%
       mutate_at(.vars = vars(datecols), .funs = datefunction) %>%
-      mutate(cohort = parse_number(cohort) %>% str_pad(., 2, side = "left", pad = "0")) %>% 
+      mutate(cohort = parse_number(cohort) %>% str_pad(., 2, side = "left", pad = "0"),
+             coat_color = gsub("([A-Z]+)(HOOD)", "\\1 \\2", mgsub::mgsub(coat_color, 
+                                                                         c("BRN|[B|b]rown", "BLK|[B|b]lack", "HHOD|[H|h]ood|[H|h]hod", "[A|a]lbino"), 
+                                                                         c("BROWN", "BLACK", "HOOD", "ALBINO"))) 
+             ) %>% 
       rename_at(vars(behavioral_unit:resolution) ,function(x){paste0(x, "_behavunit")})
     
     return(data_breeder)
@@ -96,7 +100,6 @@ kalivas_weights_xl %>% dim
 kalivas_weights_xl %>% select(cohort) %>% table()
 kalivas_weights_xl %>% select(rfid, cohort) %>% table() %>% as.data.frame() %>% dplyr::filter(Freq != 0) %>% get_dupes(rfid) # look for rfids that were repeated in cohorts and any bizarre freqs
 kalivas_weights_xl %>% select(rfid, cohort) %>% table() %>% as.data.frame() %>% select(Freq) %>% summary() # look for rfids that were repeated in cohorts and any bizarre freqs
-# left_join(WFU_KalivasItaly_test_df, kalivas_weights_xl) %>% # check for any invalid rfid
 
 # if there are no invalid rfid's, then join and create metadata dataframe
 if(left_join(
@@ -115,6 +118,23 @@ nrow == 0) {
     )
 }
 
+# Kalivas_metadata[!duplicated(as.list(Kalivas_metadata))] # code won't work because this is sensitive to the na values
+## QC and remove any redundant columns
+if(Kalivas_metadata %>% 
+  dplyr::filter(sex != sex_wtdf|cohort != cohort_wtdf|labanimalid != internal_id) %>%
+  nrow == 0) {
+  Kalivas_metadata <- Kalivas_metadata %>%
+    select(-c(sex_wtdf, cohort_wtdf,internal_id))
+  print("Removed redundant columns")
+}
+
+# QC demographic data from behav unit and make changes and 
+## make sure that mapping file notes are reflected in metadata object
+kalivas_cohort_xl %>% subset(!is.na(comments_behavunit)&!grepl("died", comments_behavunit)) %>% distinct(rfid, comments_behavunit) # exclude deaths for now and leave for later
+left_join(Kalivas_metadata, kalivas_cohort_xl, by = "rfid") %>% subset(coatcolor != coat_color) %>% select(cohort, rfid, labanimalid, coatcolor, comments_behavunit.x, coat_color)
+
+
+
 ## add death/replacement/compromise data onto the metadata table 
 # if rows in mapping excel files match rows in wfu data, continue building the metadata df by adding behav unit variables 
 if(WFU_Kalivas_test_df %>% select(cohort) %>% table() %>% as.data.frame() %>% rename("cohort" = ".") %>% mutate(cohort = as.character(cohort)) %>%  
@@ -124,11 +144,8 @@ if(WFU_Kalivas_test_df %>% select(cohort) %>% table() %>% as.data.frame() %>% re
   Kalivas_metadata <- left_join(Kalivas_metadata, kalivas_cohort_xl %>% select(rfid, matches("_behavunit")), by = "rfid")
 }
 
-
-
-
-
-
+Kalivas_metadata %>% subset(!is.na(heroin_or_saline)) %>% subset(!is.na(comments_behavunit))
+Kalivas_metadata %>% subset(!is.na(heroin_or_saline)) %>% subset(grepl("died", comments_behavunit)) %>% head(2)
 
 
 
