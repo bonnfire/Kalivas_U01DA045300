@@ -22,7 +22,7 @@ extract_kalivas_mapping <- function(files, sheet){
     data_allsheets = u01.importxlsx(i)
     # data_breeder <- data_allsheets$info_from_breeder
     data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
-    
+
     names(data_breeder) <- c("dames", "sires", data_breeder[2,3:25]) %>% tolower()
 
     datecols <- c("dob", "dow", "shipmentdate")
@@ -39,16 +39,17 @@ extract_kalivas_mapping <- function(files, sheet){
              "cohort" = "cohort_number",
              "rfid" = "microchip") %>%  # date of ship = date of delivery so remove (kalivas_cohort2_mapping %>% subset(date_of_ship != date_of_delivery))
       select(-date_of_delivery) %>%
-      mutate_at(.vars = vars(datecols), .funs = datefunction) %>% 
-      mutate(cohort = gsub("MUSC_", "", cohort))
-
-    return(data_breeder)
+      mutate_at(.vars = vars(datecols), .funs = datefunction) %>%
+      mutate(cohort = parse_number(cohort) %>% str_pad(., 2, side = "left", pad = "0")) %>% 
+      rename_at(vars(behavioral_unit:resolution) ,function(x){paste0(x, "_behavunit")})
     
+    return(data_breeder)
+
   })
   return(data_breeder_list)
 }
 
-kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames, "info_from_breeder") %>% 
+kalivas_cohort_xl <- extract_kalivas_mapping(all_excel_fnames, "info_from_breeder") %>%
   rbindlist()
 
 
@@ -88,9 +89,51 @@ extract_kalivas_weights <- function(files, sheet){
 kalivas_weights_xl <- extract_kalivas_weights(all_excel_fnames, "body_weights") %>% 
   rbindlist()
 
+kalivas_weights_xl %>% naniar::vis_miss() ## address missing weights
+kalivas_weights_xl %>% subset(is.na(weight)) %>% select(date_comment) %>% table() # 33 animals who were missed due to hurricane 
+kalivas_weights_xl %>% subset(grepl("dead", comment)) %>% dim # 3 animals were incorrectly labelled dead, 10 observations each
+kalivas_weights_xl %>% dim
+kalivas_weights_xl %>% select(cohort) %>% table()
+kalivas_weights_xl %>% select(rfid, cohort) %>% table() %>% as.data.frame() %>% dplyr::filter(Freq != 0) %>% get_dupes(rfid) # look for rfids that were repeated in cohorts and any bizarre freqs
+kalivas_weights_xl %>% select(rfid, cohort) %>% table() %>% as.data.frame() %>% select(Freq) %>% summary() # look for rfids that were repeated in cohorts and any bizarre freqs
+# left_join(WFU_KalivasItaly_test_df, kalivas_weights_xl) %>% # check for any invalid rfid
+
+# if there are no invalid rfid's, then join and create metadata dataframe
+if(left_join(
+  kalivas_weights_xl %>% distinct(rfid, cohort),
+  WFU_Kalivas_test_df %>% select(rfid, sex),
+  by = "rfid"
+) %>% # check for any invalid rfid
+mutate(inwfu = ifelse(is.na(sex), "no", "yes")) %>%
+dplyr::filter(inwfu == "no") %>%
+nrow == 0) {
+  Kalivas_metadata <- left_join(WFU_Kalivas_test_df, kalivas_weights_xl, by = "rfid") %>% # check for which animals don't have weights
+    rename_all(
+      list(
+        ~ stringr::str_to_lower(.) %>% stringr::str_replace_all(., '[.]y', '_wtdf') %>% stringr::str_replace_all(., '[.]x', '')  # rename columns to designate when something is from the weight df
+      )
+    )
+}
+
+## add death/replacement/compromise data onto the metadata table 
+# if rows in mapping excel files match rows in wfu data, continue building the metadata df by adding behav unit variables 
+if(WFU_Kalivas_test_df %>% select(cohort) %>% table() %>% as.data.frame() %>% rename("cohort" = ".") %>% mutate(cohort = as.character(cohort)) %>%  
+   left_join(kalivas_cohort_xl %>% select(cohort_behavunit) %>% table() %>% as.data.frame() %>% rename("cohort" = ".", "Freq_behavunit" = "Freq") %>% mutate(cohort = as.character(cohort)), ., by = "cohort") %>% 
+   dplyr::filter(Freq != Freq_behavunit) %>% 
+   nrow() == 0){
+  Kalivas_metadata <- left_join(Kalivas_metadata, kalivas_cohort_xl %>% select(rfid, matches("_behavunit")), by = "rfid")
+}
 
 
-############### extract for raw vs excel comparison
+
+
+
+
+
+
+
+
+  ############### extract for raw vs excel comparison
 
 
 ## create cohort 2 and 3 objects
