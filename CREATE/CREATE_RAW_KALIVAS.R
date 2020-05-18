@@ -26,7 +26,7 @@
 
 #### 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #1133 files
+allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #2093 files
 
 ## in addiction tasks 
 
@@ -120,8 +120,11 @@ lga_allsubjects <- left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob"
   mutate(session = gsub(".*day ", "", filename),
          date = as.character(date)) 
 
+
 lga_allsubjects %>% naniar::vis_miss()
 
+## might consider using this to extract cohort info instead bc the excel is not updated well enough
+lga_merge %>% mutate(cohort = stringi::stri_extract_first_regex(filename, "\\d+")) %>% select(cohort) %>% table()
 
 
 #####################################################################

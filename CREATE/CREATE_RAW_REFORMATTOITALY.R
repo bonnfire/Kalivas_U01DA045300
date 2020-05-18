@@ -156,7 +156,8 @@ if(nrow(processedSdata_lga) == nrow(lga_subjects)){
 processedSdata_lga %>% subset(!subjectid %in% c("KALNA", "KAL000")) %>% dim #2021
 # processedSdata_lga %>% subset(is.na(intake))
 
-selfadmin_escalation_1h <- processedSdata_lga %>% 
+selfadmin_escalation_1h <- processedSdata_lga %>%
+  mutate(subjectid = replace(subjectid, grepl("MUSC_Cohort 4_L room_LgA 2", filename)&subjectid=="KAL169", "KAL159")) %>%  ## 4/16 "It is supposed to say KAL159 instead of KAL169. I compared it to the data sheet and the data matches KAL159." -Ayteria
   mutate(cohort = str_match(filename, "/(.*?)/")[,2], 
          cohort = str_extract(cohort, "\\d+"),
          filename = gsub(".*MUSC_", "", filename),
