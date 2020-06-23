@@ -2,6 +2,9 @@
 setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file")
 raw_filenames_italy_kalivas <- list.files(recursive = T, full.names = T)
 
+
+## read in excel assigning subjects based on boxes 
+
 readsubject <- function(x){
   subject <- fread(paste0("grep -i 'subject:' ", "'", x, "'"), header = F)
   subject$filename <- x
@@ -59,24 +62,41 @@ expand.project.dash <- Vectorize(expand.project.dash)
 ##################################################
 ## LONG ACCESS SELF ADMIN
 ##################################################
-##################################################
 
 ########### INACTIVE LEVER PRESSES (LP), ACTIVE LP, AND INFUSIONS
 read.lga <- function(x){
-  lga <- fread(paste0("awk '/L:/{flag=1;next}/^$/{flag=0}flag' ", "'", x, "'", " | awk '/ 0:/{print $2}'"), header = F, fill = T)
-  # lga$filename <- x
-  lga_df <- as.data.frame(matrix(lga$V1, ncol = 3))
-  lga_df$filename <- x
-  lga_df <- lga_df %>% 
-    mutate(subject = str_extract(filename, "[MF](.*+)")) %>% 
-    mutate(subject = expand.project.dash(subject))
+  lga <- fread(paste0("awk '/Group:/{flag=1;next}/^$/{flag=0}flag' ", "'", x, "'", " | awk '/Box:| 0:/{print $1, $2}'"), header = F, fill = T)
+  lga_split <- split(lga, findInterval(1:nrow(lga), grep("Box:", lga$V1)))
+  maxlength <- lga_split %>% sapply(nrow) %>% max #get the max number of "arrays"
+  lga_merge <- lapply(lga_split, function(x, maxlength){
+    arrays <- x$V2
+    length(arrays) <- maxlength 
+    as.data.frame(matrix(arrays, ncol = maxlength, byrow = T))
+    }, maxlength = maxlength) %>% 
+    rbindlist(fill = T) %>%
+    mutate(filename = x)
+
+  # lga_df <- lga_df %>% 
+  #   mutate(subject = str_extract(filename, "[MF](.*+)")) %>% 
+  #   mutate(subject = expand.project.dash(subject))
   
-  return(lga_df)
+  return(lga_merge)
   # return(lga)
   }
 
-primedrein_active <- lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T), read.lga) %>% 
-  rbindlist(fill = T) %>% 
+grep("C3_LgA1-F\\(83-99\\)\\.txt", raw_filenames_italy_kalivas, value = T, ignore.case = T)
+lga_raw <- lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T), read.lga) %>%
+  rbindlist(fill = T) 
+names(lga_raw) <- c("box", "A", "inactive_presses", "active_presses", "infusions", "filename")
+lga_raw_df <- lga_raw %>% 
+  mutate_all(as.character) %>%
+  mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .))
+
+lga_raw_df %>% mutate(box = as.numeric(box)) %>% subset(box>10)
+%>% dim
+
+
+%>% 
   rename("row_number"="V1") %>% 
   select(row_number, filename) %>% 
   separate(row_number, c("row_number", "lever_presses"), sep = "_") %>% 
