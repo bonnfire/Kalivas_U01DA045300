@@ -94,6 +94,11 @@ lga_raw_df <- lga_raw %>%
 
 lga_raw_df %>% mutate(box = as.numeric(box)) %>% subset(box>10) %>% dim
 
+lga_raw_df <- lga_raw_df %>% 
+  mutate(sex = ifelse(grepl("[MF][(]", filename, ignore.case = T), gsub(".*([MF])[(].*", "\\1", filename), NA),
+         cohort = str_pad(parse_number(gsub(".*unicam_cohort_(\\d+)[/].*", "\\1", filename)), 2, "left", "0"),
+         exp = gsub(".*(LgA\\d+).*", "\\1", filename, ignore.case = T),
+         saline = ifelse(grepl("saline", filename, ignore.case = T), "Saline", NA))
 
 ##################################################
 ##################################################

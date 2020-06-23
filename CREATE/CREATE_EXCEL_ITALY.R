@@ -28,6 +28,19 @@
 # Open field (After SA)
 
 
+
+## Received 06/22/2020 from Nazzareno in Dropbox 
+
+## extract the boxes/subject information
+boxes_xl <- u01.importxlsx("rat-box_allocation.xlsx") %>% 
+  lapply(., function(x){
+    x %>% clean_names
+  }) %>% 
+  rbindlist(fill = T) %>% 
+  mutate(transponder_id = coalesce(trasponder_id, transponder_id)) %>% 
+  select(-c("trasponder_id")) %>% 
+  rename("comment" = "x8")
+
 # Received 4/3/2020 from Palmer from Nazzareno
 
 # assign the category of varnames 
