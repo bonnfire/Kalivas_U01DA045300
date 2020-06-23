@@ -92,16 +92,7 @@ lga_raw_df <- lga_raw %>%
   mutate_all(as.character) %>%
   mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .))
 
-lga_raw_df %>% mutate(box = as.numeric(box)) %>% subset(box>10)
-%>% dim
-
-
-%>% 
-  rename("row_number"="V1") %>% 
-  select(row_number, filename) %>% 
-  separate(row_number, c("row_number", "lever_presses"), sep = "_") %>% 
-  mutate(lever_presses = gsub(",", ".", lever_presses))
-
+lga_raw_df %>% mutate(box = as.numeric(box)) %>% subset(box>10) %>% dim
 
 
 ##################################################
