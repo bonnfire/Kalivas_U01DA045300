@@ -118,6 +118,7 @@ read.selfadmin.firsthour <- function(x){
     # splitting the array 
     x_split <- split(x, findInterval(1:nrow(x), grep("(L|R|W):", x$V1)))
     
+    # wrangle the data to get the total number of infusions and presses in the first hour
     x_split_2 <- lapply(x_split, function(x){
       x <- x %>% 
         mutate(V1 = replace(V1, grepl("(0|5|10):", V1), NA)) %>% 
@@ -137,15 +138,16 @@ read.selfadmin.firsthour <- function(x){
         mutate_at(vars(matches("C\\d+")), ~ replace(., grepl("Box|Start|End", V1), NA)) %>%
       #   mutate_at(vars(matches("C([3-9]|1[0-5])")), ~ replace(., V1 == "W:", NA)) %>%
         mutate_at(vars(matches("C\\d+")), as.numeric) %>%
-        mutate(sum1 = rowSums(.[grep("C\\d+", names(.))], na.rm = TRUE))
+        mutate(sum = rowSums(.[grep("C\\d+", names(.))], na.rm = TRUE)) %>% 
+        select(-matches("C\\d+|V[4-6]"))
       return(x)
     }) %>% rbindlist(fill = T)
     
     return(x_split_2)
     }) %>%
     rbindlist(fill = T) 
-  # %>%
-  #   mutate(filename = x)
+  lga_firsthour_merge <- lga_firsthour_merge %>%
+    mutate(filename = x)
   return(lga_firsthour_merge)
   # return(lga_firsthour)
 }
