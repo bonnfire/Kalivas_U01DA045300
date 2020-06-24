@@ -31,7 +31,10 @@
 
 ## Received 06/22/2020 from Nazzareno in Dropbox 
 
+
+# use this excel sheet to assign subjects to data
 ## extract the boxes/subject information
+setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file")
 boxes_xl <- u01.importxlsx("rat-box_allocation.xlsx") %>% 
   lapply(., function(x){
     x %>% clean_names
@@ -40,6 +43,17 @@ boxes_xl <- u01.importxlsx("rat-box_allocation.xlsx") %>%
   mutate(transponder_id = coalesce(trasponder_id, transponder_id)) %>% 
   select(-c("trasponder_id")) %>% 
   rename("comment" = "x8")
+
+
+
+## use this excel sheet to know which animals died (xx not sure if only after surgery deaths are recorded here)
+## extract surgery information
+setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data")
+
+
+
+
+
 
 # Received 4/3/2020 from Palmer from Nazzareno
 

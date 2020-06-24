@@ -178,10 +178,27 @@ read.selfadmin.firsthour <- function(x){
 # grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[39] file doesn't have unique boxes and sessions in the 
 lga_firsthour_raw <- lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T), read.selfadmin.firsthour) %>%
   rbindlist(fill = T) 
+  
+lga_firsthour_raw_df <- lga_firsthour_raw %>% 
+  rename("active" = "r", 
+         "inactive" = "l", 
+         "infusions" = "w") %>% 
+  mutate_at(vars(one_of("active","inactive", "infusions")), as.numeric)
 
+lga_firsthour_raw_df %>% 
+  ggplot(aes(x = active)) + 
+  geom_histogram() + 
+  facet_grid(~ cohort) 
 
+lga_firsthour_raw_df %>% 
+  ggplot(aes(x = inactive)) + 
+  geom_histogram() + 
+  facet_grid(~ cohort) 
 
-
+lga_firsthour_raw_df %>% 
+  ggplot(aes(x = infusions)) + 
+  geom_histogram() + 
+  facet_grid(~ cohort) 
 
 ##################################################
 ##################################################
