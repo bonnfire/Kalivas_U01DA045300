@@ -138,24 +138,42 @@ read.selfadmin.firsthour <- function(x){
         mutate_at(vars(matches("C\\d+")), ~ replace(., grepl("Box|Start|End", V1), NA)) %>%
       #   mutate_at(vars(matches("C([3-9]|1[0-5])")), ~ replace(., V1 == "W:", NA)) %>%
         mutate_at(vars(matches("C\\d+")), as.numeric) %>%
-        mutate(sum = rowSums(.[grep("C\\d+", names(.))], na.rm = TRUE)) %>% 
-        select(-matches("C\\d+|V[4-6]"))
+        mutate(sum = rowSums(.[grep("C\\d+", names(.))], na.rm = TRUE) %>% as.character) %>% 
+        mutate_all(~ replace(., grepl("^$", .), NA)) %>% 
+        rowwise() %>%
+        mutate(V1 = replace(V1, grepl("Time", V2, ignore.case = T), paste0(V1, "_Time")),  # move the time character to the first column
+               V2 = replace(V2, grepl("Time", V2, ignore.case = T), NA),
+               sum = replace(sum, grepl("Box|Start|End", V1), NA),
+               V1 = gsub("[:]", "", V1)) %>%
+        mutate(sum = coalesce(sum, V3)) %>% 
+        mutate(sum = coalesce(sum, V2)) %>%
+        select(-matches("C\\d+|V[2-6]")) %>% 
+        ungroup() 
       return(x)
-    }) %>% rbindlist(fill = T)
+    }) %>% rbindlist(fill = T) 
     
     return(x_split_2)
     }) %>%
-    rbindlist(fill = T) 
-  lga_firsthour_merge <- lga_firsthour_merge %>%
-    mutate(filename = x)
+    rbindlist(fill = T)
+  
+
+  ## create a wide dataframe from long by first assigning the boxes within each file
+  lga_firsthour_merge <- lga_firsthour_merge %>% 
+    mutate(box = ifelse(grepl("box", V1, ignore.case = T), sum, NA)) %>%
+    fill(box) %>% 
+    spread(V1, sum) %>%
+    mutate(filename = x) %>%
+    mutate(exp = str_extract(toupper(filename), "LGA\\d+"),
+           cohort = str_extract(toupper(filename), "C\\d+"),
+           room = str_extract(toupper(filename), "ROOM[[:space:]]?\\d+"))
+  
   return(lga_firsthour_merge)
-  # return(lga_firsthour)
-}
 
+  }
 
-# lga_firsthour_raw <- 
+lga_firsthour_raw <-
   lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[280], read.selfadmin.firsthour) %>%
-  rbindlist(fill = T) %>% tail(20)
+  rbindlist(fill = T) %>% head(10)
 
 
 
