@@ -159,21 +159,25 @@ read.selfadmin.firsthour <- function(x){
 
   ## create a wide dataframe from long by first assigning the boxes within each file
   lga_firsthour_merge <- lga_firsthour_merge %>% 
-    mutate(box = ifelse(grepl("box", V1, ignore.case = T), sum, NA)) %>%
-    fill(box) %>% 
+    mutate(box = ifelse(grepl("box", V1, ignore.case = T), paste0(sum, "_",lead(sum, 1)), NA)) %>%
+    fill(box) %>%
     spread(V1, sum) %>%
+    separate(box, into = c("box", "start_time"), sep = "_") %>% 
     mutate(filename = x) %>%
     mutate(exp = str_extract(toupper(filename), "LGA\\d+"),
            cohort = str_extract(toupper(filename), "C\\d+"),
-           room = str_extract(toupper(filename), "ROOM[[:space:]]?\\d+"))
+           room = str_extract(toupper(filename), "ROOM[[:space:]]?\\d+")) %>% 
+    clean_names() %>% 
+    select(-matches("_[2-9]$"))  # remove duplicated columns (here, they are the ones that were used to spread)
   
   return(lga_firsthour_merge)
 
   }
 
-lga_firsthour_raw <-
-  lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[280], read.selfadmin.firsthour) %>%
-  rbindlist(fill = T) %>% head(10)
+# trial with grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[280]
+# grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[39] file doesn't have unique boxes and sessions in the 
+lga_firsthour_raw <- lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T), read.selfadmin.firsthour) %>%
+  rbindlist(fill = T) 
 
 
 
