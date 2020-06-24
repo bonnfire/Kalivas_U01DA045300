@@ -113,7 +113,7 @@ read.selfadmin.firsthour <- function(x){
   lga_firsthour_merge <- lapply(lga_firsthour_split, function(x){
     x <- x %>% 
       mutate(V2 = replace(V2, V1=="0:", NA)) %>%  # remove the total 12h value, remove any 5 min bins after an hour (12th bin)
-      mutate_at(vars(matches("V[456]")), ~ replace(., V1=="10:", NA) ) 
+      mutate_at(vars(matches("V[56]")), ~ replace(., V1=="10:", NA) ) 
     
     # splitting the array 
     x_split <- split(x, findInterval(1:nrow(x), grep("(L|R|W):", x$V1)))
@@ -123,17 +123,20 @@ read.selfadmin.firsthour <- function(x){
         mutate(V1 = replace(V1, grepl("(0|5|10):", V1), NA)) %>% 
         fill(V1) %>% 
         mutate_all(as.character) %>%
-        mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .)) %>% 
-        mutate(V7 = paste0(c(V2, V3, V4, V5, V6), collapse = ",") ) %>% 
-        group_by(V1) %>% 
-        mutate(V8 = paste0(V7, collapse = ",") ) %>% 
-        ungroup() %>% 
-        subset(grepl("^$|Time", V2)|grepl("Box", V1)) %>% 
-        separate(V8, into = c(paste0("C", 1:15)), sep = ",") %>% 
-        select(-V7) %>% 
-        mutate_at(vars(matches("C\\d+")), ~ replace(., !grepl("[.]00", .), NA)) %>% 
-        mutate_at(vars(matches("C([3-9]|1[0-5])")), ~ replace(., V1 == "W:", NA)) %>% 
-        mutate_at(vars(matches("C\\d+")), as.numeric) %>% 
+        mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .)) %>%
+        rowwise() %>% 
+        mutate(V7 = paste0(c(V2, V3, V4, V5, V6), collapse = ",") ) %>%
+        # subset(!grepl("^$|Time", V2)|grepl("Box", V1)) %>% 
+        group_by(V1) %>%
+        mutate(V8 = paste0(V7, collapse = ",") ) %>%
+        ungroup() %>%
+        subset(grepl("^$|Time", V2)|grepl("Box", V1)) %>%
+          select(-V7) %>%
+        mutate(V8 = gsub("[,]{2,}", "", V8)) %>%
+        separate(V8, into = c(paste0("C", 1:15)), sep = ",") %>%
+        mutate_at(vars(matches("C\\d+")), ~ replace(., grepl("Box|Start|End", V1), NA)) %>%
+      #   mutate_at(vars(matches("C([3-9]|1[0-5])")), ~ replace(., V1 == "W:", NA)) %>%
+        mutate_at(vars(matches("C\\d+")), as.numeric) %>%
         mutate(sum1 = rowSums(.[grep("C\\d+", names(.))], na.rm = TRUE))
       return(x)
     }) %>% rbindlist(fill = T)
@@ -150,7 +153,7 @@ read.selfadmin.firsthour <- function(x){
 
 # lga_firsthour_raw <- 
   lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[280], read.selfadmin.firsthour) %>%
-  rbindlist(fill = T) 
+  rbindlist(fill = T) %>% tail(20)
 
 
 
