@@ -37,7 +37,8 @@ read.inactive <- function(x){
 expand.project.dash <- function(txt) {
   
   if((grepl("\\d[[:space:]]?-[[:space:]]?\\d", txt) & !grepl("Subject", txt, ignore.case = T))){
-    str <- gsub('[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '%s', txt)
+    # str <- gsub('[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '%s', txt)
+    str <- gsub('([MF])[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '\\1', txt)
     dashed_str <- gsub('[a-zA-Z ()]+', '', txt)
 
     expand.dash <- function(dashed) {
@@ -57,6 +58,11 @@ expand.project.dash <- function(txt) {
   }
 }
 expand.project.dash <- Vectorize(expand.project.dash)
+
+
+
+gsub("[^MF]", "", str_extract_all("LGA9 M(209-210_237-238) F( 235-240)", "[MF][(]")[[1]], ignore.case = T)
+
 
 ##################################################
 ##################################################
@@ -183,7 +189,16 @@ lga_firsthour_raw_df <- lga_firsthour_raw %>%
   rename("active" = "r", 
          "inactive" = "l", 
          "infusions" = "w") %>% 
-  mutate_at(vars(one_of("active","inactive", "infusions")), as.numeric)
+  mutate_at(vars(one_of("active","inactive", "infusions")), as.numeric) %>% 
+  mutate(sex = ifelse(grepl("[MF][(]", filename, ignore.case = T), gsub(".*([MF])[(].*", "\\1", filename), NA))
+
+# assign the subjects by box (differentiate by sex and room)
+lga_firsthour_raw_df_expand <- lga_firsthour_raw_df %>% 
+  mutate(subjects = expand.project.dash(filename))
+  left_join(.,  boxes_xl , by = c("sex", "room", "box"))
+
+
+
 
 lga_firsthour_raw_df %>% 
   ggplot(aes(x = active)) + 

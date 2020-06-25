@@ -42,9 +42,14 @@ boxes_xl <- u01.importxlsx("rat-box_allocation.xlsx") %>%
   rbindlist(fill = T) %>% 
   mutate(transponder_id = coalesce(trasponder_id, transponder_id)) %>% 
   select(-c("trasponder_id")) %>% 
-  rename("comment" = "x8")
+  rename("comment" = "x8",
+         "cohort" = "batch_number") %>%
+  setNames(gsub("self_admin.*_", "", names(.), ignore.case = T)) %>% 
+  mutate(cohort = paste0("C", str_pad(parse_number(cohort), 2, "left", "0")))
 
-
+# find the rooms and sexes and assign
+boxes_xl_rooms <- boxes_xl %>% 
+  
 
 ## use this excel sheet to know which animals died (xx not sure if only after surgery deaths are recorded here)
 ## extract surgery information
