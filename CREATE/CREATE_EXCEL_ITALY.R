@@ -48,14 +48,24 @@ boxes_xl <- u01.importxlsx("rat-box_allocation.xlsx") %>%
   mutate(cohort = paste0("C", str_pad(parse_number(cohort), 2, "left", "0")))
 
 # find the rooms and sexes and assign
-boxes_xl_rooms <- boxes_xl %>% 
+# boxes_xl_rooms <- boxes_xl %>% 
   
 
 ## use this excel sheet to know which animals died (xx not sure if only after surgery deaths are recorded here)
 ## extract surgery information
 setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data")
-
-
+kalivas_italy_xl_filenames <- list.files(full.names = T, recursive = T)
+kalivas_italy_xl <- lapply(kalivas_italy_xl_filenames, function(x){
+  x <- u01.importxlsx(x)
+  x_df <- lapply(x, function(y){
+    y <- y %>% 
+      clean_names %>% 
+      mutate_all(as.character)
+    }) %>% 
+    rbindlist(fill = T)
+  return(x_df)
+  }) %>% 
+  rbindlist(fill = T) 
 
 
 
