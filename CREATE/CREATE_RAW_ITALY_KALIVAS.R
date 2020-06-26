@@ -38,27 +38,28 @@ expand.project.dash <- function(txt) {
   
   if((grepl("\\d[[:space:]]?-[[:space:]]?\\d", txt) & !grepl("Subject", txt, ignore.case = T))){
     # str <- gsub('[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '%s', txt)
-    str <- gsub('([MF])[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '\\1', txt)
-    dashed_str <- gsub('[a-zA-Z ()]+', '', txt)
+    # str <- gsub('([MF])[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '\\1', txt)
+    str <- paste0(gsub("[^MF]", "", str_extract_all(txt, "[MF][(]")[[1]], ignore.case = T), "%s")
+    dashed_str <- str_extract(txt, "[(][0-9 -_]+[)]") %>% gsub("[() ]", "", .)  ## get rid of spaces and parentheses
 
     expand.dash <- function(dashed) {
       limits <- as.numeric(unlist(strsplit(dashed, '-')))
-      first <- seq(limits[1], limits[2], 4)
-      second <- seq(limits[1], limits[2], 4) + 1
-      c(rbind(first, second))
+      seq(limits[1], limits[2])
     }
 
     paste0(sprintf(str, expand.dash(dashed_str)), sep = "", collapse = ",")
   }
-  else if(grepl("\\d[[:space:]]?-[[:space:]]?\\d", txt) & grepl("Subject", txt, ignore.case = T)){
-    paste0(gsub("([MF])[(].*", "\\1", txt), parse_number(gsub(".*Subject ", "", txt)))
-  } 
+  # else if(grepl("\\d[[:space:]]?-[[:space:]]?\\d", txt) & grepl("Subject", txt, ignore.case = T)){
+  #   paste0(gsub("([MF])[(].*", "\\1", txt), parse_number(gsub(".*Subject ", "", txt)))
+  # } 
   else{
     paste0(txt)
   }
 }
 expand.project.dash <- Vectorize(expand.project.dash)
 
+txt <- "C3_LgA1-F(83-99).txt"
+expand.project.dash("C3_LgA1-F(83-99).txt") output F83, F84, F85, F86,... 
 
 
 gsub("[^MF]", "", str_extract_all("LGA9 M(209-210_237-238) F( 235-240)", "[MF][(]")[[1]], ignore.case = T)
@@ -193,10 +194,34 @@ lga_firsthour_raw_df <- lga_firsthour_raw %>%
   mutate(sex = ifelse(grepl("[MF][(]", filename, ignore.case = T), gsub(".*([MF])[(].*", "\\1", filename), NA))
 
 # assign the subjects by box (differentiate by sex and room)
-lga_firsthour_raw_df_expand <- lga_firsthour_raw_df %>% 
-  mutate(subjects = expand.project.dash(filename))
-  left_join(.,  boxes_xl , by = c("sex", "room", "box"))
+# work with just cohort 3
 
+# maybe install.packages("fuzzyjoin")
+
+# lga_firsthour_raw_df_expand <- 
+test <-  lga_firsthour_raw_df %>% 
+  subset(cohort = "C3") %>% 
+  rowwise() %>% 
+  mutate(from = as.numeric(unlist(strsplit(str_extract(filename, "[(][0-9 -_]+[)]") %>% gsub("[() ]", "", .), '-')))[1], 
+           to = as.numeric(unlist(strsplit(str_extract(filename, "[(][0-9 -_]+[)]") %>% gsub("[() ]", "", .), '-')))[2]) %>% 
+  ungroup() %>% 
+  mutate(sex = gsub("[^MF]", "", str_extract_all(filename, "[MF][(]")[[1]], ignore.case = T))  
+# %>% 
+  # mutate(possible_subjects = expand.project.dash(filename))
+    fuzzyjoin::fuzzy_join(boxes_xl %>% 
+                            mutate_at(vars(one_of("rat_internal_id")), as.numeric), ., 
+                          by = c("rat_internal_id" = "from", "value" = "to"), 
+               match_fun = list(`>=`, `<`)) %>% 
+  subset(box.x == box.y,
+         sex.x == sex.y)
+  
+boxes_xl %>% 
+  subset(cohort == "C03") %>%
+  mutate_at(vars(one_of("rat_internal_id")), as.numeric) %>%
+  fuzzyjoin::fuzzy_join(test, by = c("rat_internal_id" = "from", "rat_internal_id" = "to"), match_fun = list(`>=`, `<`)) %>% 
+  subset(box.x == box.y,
+         sex.x == sex.y) %>% 
+  select(-one_of( "animal_id", "sa_room", "sa_box", "comment",  "start_time", "end_time", "heroin_saline_yoked"))
 
 
 
