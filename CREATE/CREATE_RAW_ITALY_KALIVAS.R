@@ -39,12 +39,14 @@ expand.project.dash <- function(txt) {
   if((grepl("\\d[[:space:]]?-[[:space:]]?\\d", txt) & !grepl("Subject", txt, ignore.case = T))){
     # str <- gsub('[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '%s', txt)
     # str <- gsub('([MF])[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '\\1', txt)
-    str <- paste0(gsub("[^MF]", "", str_extract_all(txt, "[MF][(]")[[1]], ignore.case = T), "%s")
+    str <- paste0(gsub("[^MF]", "", str_extract_all(txt, "[MF][(]?")[[1]], ignore.case = T), "%s")
     dashed_str <- str_extract(txt, "[(][0-9 -_]+[)]") %>% gsub("[() ]", "", .)  ## get rid of spaces and parentheses
 
     expand.dash <- function(dashed) {
-      limits <- as.numeric(unlist(strsplit(dashed, '-')))
-      seq(limits[1], limits[2])
+      strsplit(dashed, '_')[[1]] %>% 
+        str_split(., "-") %>% 
+        lapply(function(x){ seq(as.numeric(x[1]), as.numeric(x[2])) }) %>% 
+        unlist() 
     }
 
     paste0(sprintf(str, expand.dash(dashed_str)), sep = "", collapse = ",")
@@ -58,9 +60,16 @@ expand.project.dash <- function(txt) {
 }
 expand.project.dash <- Vectorize(expand.project.dash)
 
-txt <- "C3_LgA1-F(83-99).txt"
-expand.project.dash("C3_LgA1-F(83-99).txt") output F83, F84, F85, F86,... 
+## xx pick up from here and fix the code for getting rid of numeric characters
 
+
+
+# any of these should work
+txt <- ("./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA9 M(209-210_237-238) F( 235-240)
+> txt")
+
+lga_firsthour_raw_df %>% subset(grepl("[MF][(].*[MF][(].*", filename)) %>% select(filename) %>% table()
+expand.project.dash("LGA9 M(209-210_237-238) F( 235-240)")
 
 gsub("[^MF]", "", str_extract_all("LGA9 M(209-210_237-238) F( 235-240)", "[MF][(]")[[1]], ignore.case = T)
 
@@ -208,6 +217,13 @@ test <-  lga_firsthour_raw_df %>%
          box = as.character(box)), by = c("box", "possible_subjects" = "labanimalid"), match_fun = stringr::str_detect)
 
 
+lga_firsthour_raw_df %>% subset(grepl("[MF][(].*[MF][(].*", filename)) %>% distinct(filename)
+
+
+
+
+
+test %>% get_dupes(labanimalid, exp, start_time)
 
   
 
