@@ -200,29 +200,16 @@ lga_firsthour_raw_df <- lga_firsthour_raw %>%
 
 # lga_firsthour_raw_df_expand <- 
 test <-  lga_firsthour_raw_df %>% 
-  subset(cohort = "C3") %>% 
-  rowwise() %>% 
-  mutate(from = as.numeric(unlist(strsplit(str_extract(filename, "[(][0-9 -_]+[)]") %>% gsub("[() ]", "", .), '-')))[1], 
-           to = as.numeric(unlist(strsplit(str_extract(filename, "[(][0-9 -_]+[)]") %>% gsub("[() ]", "", .), '-')))[2]) %>% 
-  ungroup() %>% 
-  mutate(sex = gsub("[^MF]", "", str_extract_all(filename, "[MF][(]")[[1]], ignore.case = T))  
-# %>% 
-  # mutate(possible_subjects = expand.project.dash(filename))
-    fuzzyjoin::fuzzy_join(boxes_xl %>% 
-                            mutate_at(vars(one_of("rat_internal_id")), as.numeric), ., 
-                          by = c("rat_internal_id" = "from", "value" = "to"), 
-               match_fun = list(`>=`, `<`)) %>% 
-  subset(box.x == box.y,
-         sex.x == sex.y)
-  
-boxes_xl %>% 
+  subset(cohort == "C3") %>% 
+  mutate(possible_subjects = expand.project.dash(filename) %>% as.character) %>% fuzzyjoin::fuzzy_inner_join(boxes_xl %>% 
   subset(cohort == "C03") %>%
-  mutate_at(vars(one_of("rat_internal_id")), as.numeric) %>%
-  fuzzyjoin::fuzzy_join(test, by = c("rat_internal_id" = "from", "rat_internal_id" = "to"), match_fun = list(`>=`, `<`)) %>% 
-  subset(box.x == box.y,
-         sex.x == sex.y) %>% 
-  select(-one_of( "animal_id", "sa_room", "sa_box", "comment",  "start_time", "end_time", "heroin_saline_yoked"))
+  mutate_at(vars(one_of("rat_internal_id")), as.numeric) %>% 
+  mutate(labanimalid = paste0(sex, rat_internal_id),
+         box = as.character(box)), by = c("box", "possible_subjects" = "labanimalid"), match_fun = stringr::str_detect)
 
+
+
+  
 
 
 lga_firsthour_raw_df %>% 
