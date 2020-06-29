@@ -34,22 +34,30 @@ read.inactive <- function(x){
 ### function to expand the subject names in filename 
 ## functions for wrangling
 ## create new rows to expand on the projects 
-expand.project.dash <- function(txt) {
-  
+expand.project.dash <- function(txt_original) {
+  txt <- txt_original %>% gsub(" ", "", .)
   if((grepl("\\d[[:space:]]?-[[:space:]]?\\d", txt) & !grepl("Subject", txt, ignore.case = T))){
-    # str <- gsub('[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '%s', txt)
-    # str <- gsub('([MF])[(]\\d+\\s?-\\s?\\d+[)](.txt)?', '\\1', txt)
-    str <- paste0(gsub("[^MF]", "", str_extract_all(txt, "[MF][(]?")[[1]], ignore.case = T), "%s")
-    dashed_str <- str_extract(txt, "[(][0-9 -_]+[)]") %>% gsub("[() ]", "", .)  ## get rid of spaces and parentheses
-
-    expand.dash <- function(dashed) {
-      strsplit(dashed, '_')[[1]] %>% 
-        str_split(., "-") %>% 
-        lapply(function(x){ seq(as.numeric(x[1]), as.numeric(x[2])) }) %>% 
-        unlist() 
+    
+    str <- paste0(gsub("[^MF]", "", str_extract_all(txt, "[MF][(]")[[1]], ignore.case = T), "%s")
+    dashed_nums <- stringr::str_extract_all(txt, "\\([^()]+\\)")[[1]] %>% gsub("[()]", "", .) %>% strsplit('_') ## get rid of spaces and parentheses
+    
+    numbers <- lapply(dashed_nums, function(x){
+      str_split(x, "-")}) %>% 
+      lapply(function(x){ 
+        lapply(x, function(x){
+          seq(as.numeric(x[[1]]), as.numeric(x[[2]]))}) 
+      }) %>% 
+      lapply(function(x){
+        unlist(x, recursive = F)
+      })
+    
+    ids_list <- list()
+    for(i in 1:length(str)){
+      ids_list[i] <- paste0(sprintf(str[i], numbers[[i]]), separate = "", collapse = ",")
     }
-
-    paste0(sprintf(str, expand.dash(dashed_str)), sep = "", collapse = ",")
+    
+    ids_df <- unlist(ids_list) %>% paste0(collapse  = ",")
+    return(ids_df)
   }
   # else if(grepl("\\d[[:space:]]?-[[:space:]]?\\d", txt) & grepl("Subject", txt, ignore.case = T)){
   #   paste0(gsub("([MF])[(].*", "\\1", txt), parse_number(gsub(".*Subject ", "", txt)))
@@ -60,16 +68,25 @@ expand.project.dash <- function(txt) {
 }
 expand.project.dash <- Vectorize(expand.project.dash)
 
+# dashed_str <- stringr::str_extract_all(txt, "\\([^()]+\\)")[[1]] %>% gsub("[()]", "", .)
+# test_list <- strsplit(dashed_str, '_')
+
+
+
 ## xx pick up from here and fix the code for getting rid of numeric characters
 
 
-
 # any of these should work
-txt <- ("./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA9 M(209-210_237-238) F( 235-240)
+txt_original <- ("./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA9 M(209-210_237-238) F( 235-240)
 > txt")
+txt <- gsub("[[:space:]]", "", txt_original)
+paste0(gsub("[^MF]", "", str_extract_all(txt, "[MF][(]")[[1]], ignore.case = T), "%s")
 
-lga_firsthour_raw_df %>% subset(grepl("[MF][(].*[MF][(].*", filename)) %>% select(filename) %>% table()
-expand.project.dash("LGA9 M(209-210_237-238) F( 235-240)")
+
+messyids <- lga_firsthour_raw_df %>% subset(grepl("[MF][(].*[MF][(].*", filename)) %>% select(filename) %>% distinct() 
+# %>% unlist() %>% as.character
+messyids %>% mutate(potentialids = expand.project.dash(filename))
+
 
 gsub("[^MF]", "", str_extract_all("LGA9 M(209-210_237-238) F( 235-240)", "[MF][(]")[[1]], ignore.case = T)
 
