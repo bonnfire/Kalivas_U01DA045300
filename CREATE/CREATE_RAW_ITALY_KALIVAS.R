@@ -1,7 +1,7 @@
 ## CREATE RAW ITALY KALIVAS
 setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file")
 raw_filenames_italy_kalivas <- list.files(recursive = T, full.names = T)
-
+# raw_filenames_italy_kalivas[which(raw_filenames_italy_kalivas == "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR( F 239-240)")] <- "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR F(239-240)"
 
 ## read in excel assigning subjects based on boxes 
 
@@ -67,28 +67,6 @@ expand.project.dash <- function(txt_original) {
   }
 }
 expand.project.dash <- Vectorize(expand.project.dash)
-
-# dashed_str <- stringr::str_extract_all(txt, "\\([^()]+\\)")[[1]] %>% gsub("[()]", "", .)
-# test_list <- strsplit(dashed_str, '_')
-
-
-
-## xx pick up from here and fix the code for getting rid of numeric characters
-
-
-# any of these should work
-txt_original <- ("./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA9 M(209-210_237-238) F( 235-240)
-> txt")
-txt <- gsub("[[:space:]]", "", txt_original)
-paste0(gsub("[^MF]", "", str_extract_all(txt, "[MF][(]")[[1]], ignore.case = T), "%s")
-
-
-messyids <- lga_firsthour_raw_df %>% subset(grepl("[MF][(].*[MF][(].*", filename)) %>% select(filename) %>% distinct() 
-# %>% unlist() %>% as.character
-messyids %>% mutate(potentialids = expand.project.dash(filename))
-
-
-gsub("[^MF]", "", str_extract_all("LGA9 M(209-210_237-238) F( 235-240)", "[MF][(]")[[1]], ignore.case = T)
 
 
 ##################################################
@@ -210,7 +188,7 @@ read.selfadmin.firsthour <- function(x){
 # trial with grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[280]
 # grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T)[39] file doesn't have unique boxes and sessions in the 
 lga_firsthour_raw <- lapply(grep("long-access", raw_filenames_italy_kalivas, value = T, ignore.case = T), read.selfadmin.firsthour) %>%
-  rbindlist(fill = T) 
+  rbindlist(fill = T)
   
 lga_firsthour_raw_df <- lga_firsthour_raw %>% 
   rename("active" = "r", 
@@ -220,15 +198,14 @@ lga_firsthour_raw_df <- lga_firsthour_raw %>%
   mutate(sex = ifelse(grepl("[MF][(]", filename, ignore.case = T), gsub(".*([MF])[(].*", "\\1", filename), NA))
 
 # assign the subjects by box (differentiate by sex and room)
-# work with just cohort 3
 
 # maybe install.packages("fuzzyjoin")
 
-# lga_firsthour_raw_df_expand <- 
-test <-  lga_firsthour_raw_df %>% 
-  subset(cohort == "C3") %>% 
+lga_firsthour_raw_df_expand <- lga_firsthour_raw_df  %>% 
+  mutate(filename =
+           replace(filename, filename == "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR( F 239-240)",
+                   "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR F(239-240)")) %>% 
   mutate(possible_subjects = expand.project.dash(filename) %>% as.character) %>% fuzzyjoin::fuzzy_inner_join(boxes_xl %>% 
-  subset(cohort == "C03") %>%
   mutate_at(vars(one_of("rat_internal_id")), as.numeric) %>% 
   mutate(labanimalid = paste0(sex, rat_internal_id),
          box = as.character(box)), by = c("box", "possible_subjects" = "labanimalid"), match_fun = stringr::str_detect)
