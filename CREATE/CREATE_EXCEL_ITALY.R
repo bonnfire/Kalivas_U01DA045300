@@ -64,8 +64,12 @@ kalivas_italy_xl <- lapply(kalivas_italy_xl_filenames, function(x){
     }) %>% 
     rbindlist(fill = T)
   return(x_df)
-  }) %>% 
-  rbindlist(fill = T) 
+  }) 
+names(kalivas_italy_xl) <- str_extract(kalivas_italy_xl_filenames, "cohort \\d+") %>% parse_number %>% str_pad(., 2, "left", "0") %>% paste0("C", .)
+kalivas_italy_xl_df <- kalivas_italy_xl %>% 
+  rbindlist(fill = T, idcol = "cohort") 
+
+
 
 
 

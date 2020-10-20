@@ -200,15 +200,16 @@ lga_firsthour_raw_df <- lga_firsthour_raw %>%
 # assign the subjects by box (differentiate by sex and room)
 
 # maybe install.packages("fuzzyjoin")
-
+  
 lga_firsthour_raw_df_expand <- lga_firsthour_raw_df  %>% 
   mutate(filename =
            replace(filename, filename == "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR( F 239-240)",
                    "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR F(239-240)")) %>% 
-  mutate(possible_subjects = expand.project.dash(filename) %>% as.character) %>% fuzzyjoin::fuzzy_inner_join(boxes_xl %>% 
-  mutate_at(vars(one_of("rat_internal_id")), as.numeric) %>% 
-  mutate(labanimalid = paste0(sex, rat_internal_id),
-         box = as.character(box)), by = c("box", "possible_subjects" = "labanimalid"), match_fun = stringr::str_detect)
+  mutate(possible_subjects = expand.project.dash(filename) %>% as.character) %>% 
+  fuzzyjoin::fuzzy_left_join(., boxes_xl %>% 
+                                mutate_at(vars(one_of("rat_internal_id")), as.numeric) %>% 
+                                mutate(labanimalid = paste0(sex, rat_internal_id),
+                                       box = as.character(box)), by = c("box", "possible_subjects" = "labanimalid"), match_fun = stringr::str_detect)
 
 
 lga_firsthour_raw_df %>% subset(grepl("[MF][(].*[MF][(].*", filename)) %>% distinct(filename)
