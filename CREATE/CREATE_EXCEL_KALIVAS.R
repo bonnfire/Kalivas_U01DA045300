@@ -526,10 +526,10 @@ kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel
 
 kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>% 
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
-  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
-  pivot_wider(names_from = session, values_from = closed_arm_entries:resolution)
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
 
-# data_breeder <- data_allsheets$elevated_plus_maze
+kalivas_epm_allcohorts_excel_processed_c01_08_df_wide <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>% 
+  pivot_wider(names_from = session, values_from = closed_arm_entries:resolution)
 
 ############################
 # Exp 2: OPEN FIELD TASK
@@ -545,7 +545,9 @@ kalivas_oft_allcohorts_excel_processed_c01_08_df <- kalivas_oft_allcohorts_excel
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   select(-cohort_number) %>% 
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
-  mutate_at(vars(one_of("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")), as.numeric) %>% 
+  mutate_at(vars(one_of("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")), as.numeric) 
+
+kalivas_oft_allcohorts_excel_processed_c01_08_df_wide <- kalivas_oft_allcohorts_excel_processed_c01_08_df %>% 
   pivot_wider(names_from = session, values_from = center_time_seconds:total_time_traveled_seconds) 
 
 ############################
@@ -561,7 +563,9 @@ kalivas_tf_allcohorts_excel_processed_c01_08_df <- kalivas_tf_allcohorts_excel_p
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   select(-cohort_number) %>% 
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
-  mutate_at(vars(matches("mean|(treatment|vehicle)_rt")), as.numeric) %>% 
+  mutate_at(vars(matches("mean|(treatment|vehicle)_rt")), as.numeric)
+
+kalivas_epm_allcohorts_excel_processed_c01_08_df_wide <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>%   
   pivot_wider(names_from = session, values_from = comments:vehicle_rt4_seconds) 
 
 

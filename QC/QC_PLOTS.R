@@ -148,14 +148,20 @@ lga_allsubjects_tograph %>% dplyr::filter_at(vars(matches("_raw")), is.na)
 # # for clarifying the non-kal subject id 
 # lga_allsubjects_tograph %>% dplyr::filter(session == 13, is.na(active_lever_raw))
 
+############################
+# Exp 1: EPM 
+############################
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_epm_excel", onefile = T)
 
-
+kalivas_epm_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
+kalivas_oft_allcohorts_excel_processed_tograph <- kalivas_oft_allcohorts_excel_processed %>% 
+  mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric)
 
 ############################
 # Exp 2: OPEN FIELD TASK
 ############################
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
-ggplpdf("plot_kalivas_openfieldtask_excel", onefile = T)
+pdf("plot_kalivas_openfieldtask_excel", onefile = T)
 
 kalivas_oft_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
 kalivas_oft_allcohorts_excel_processed_tograph <- kalivas_oft_allcohorts_excel_processed %>% 
