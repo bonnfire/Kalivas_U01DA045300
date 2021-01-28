@@ -26,7 +26,7 @@
 
 #### 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #2093 files
+allcohorts_allexp_filenames_c01_07 <- list.files(full.names = T, recursive = T) %>% grep("Cohort [2-7]", ., value = T) #3051 files ## c08 is still being updated 01/28/2021
 
 ## in addiction tasks 
 
@@ -41,7 +41,7 @@ allcohorts_allexp_filenames <- list.files(full.names = T, recursive = T) #2093 f
 
 
 ## cohort xx : after the session ended, rats received 0.05 ml of a mixture of Heparin and 1 mg/ml Gentamicin Sulfate (antibiotic) to maintain catheter patency and animal health
-allcohorts_longaccess_fnames <- grep("long", allcohorts_allexp_filenames, ignore.case = T, value = T) #743 (cohort 2,3,4,5)
+allcohorts_longaccess_fnames_c01_07 <- grep("long", allcohorts_allexp_filenames_c01_07, ignore.case = T, value = T) #743 (cohort 2,3,4,5)
 
 # Extract subject information
 readsubject <- function(x){

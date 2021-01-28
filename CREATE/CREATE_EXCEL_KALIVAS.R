@@ -226,19 +226,19 @@ kalivas_lga_allcohorts_excel_processed_c01_08_df <- kalivas_lga_allcohorts_excel
 
 
 ## extracting data for escalation of intake_first hour.xlsx 
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300")
-escalation_firsthour_xl <- u01.importxlsx_cT("Escalation of intake_first hour.xlsx")[[1]] %>% 
-  clean_names() %>% 
-  rename_all(list(~stringr::str_replace_all(., "lg_a", "lga"))) %>% 
-  left_join(., WFU_Kalivas_test_df[, c("rfid", "labanimalid")], by = c("transponder_number" = "rfid"))
-escalation_firsthour_xl_esca <- escalation_firsthour_xl %>% 
-  mutate(mean_firstsessions = rowMeans(.[grep("lga_[123]$", names(.))], na.rm =TRUE),
-         mean_latersessions = rowMeans(.[grep("lga_1[012]$", names(.))], na.rm =TRUE),
-         escalation = mean_latersessions - mean_firstsessions) %>% 
-  select(-matches("mean|lga"))
-
-ggplot(escalation_firsthour_xl_esca, aes(x = escalation)) + 
-  geom_histogram()
+# setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300")
+# escalation_firsthour_xl <- u01.importxlsx_cT("Escalation of intake_first hour.xlsx")[[1]] %>% 
+#   clean_names() %>% 
+#   rename_all(list(~stringr::str_replace_all(., "lg_a", "lga"))) %>% 
+#   left_join(., WFU_Kalivas_test_df[, c("rfid", "labanimalid")], by = c("transponder_number" = "rfid"))
+# escalation_firsthour_xl_esca <- escalation_firsthour_xl %>% 
+#   mutate(mean_firstsessions = rowMeans(.[grep("lga_[123]$", names(.))], na.rm =TRUE),
+#          mean_latersessions = rowMeans(.[grep("lga_1[012]$", names(.))], na.rm =TRUE),
+#          escalation = mean_latersessions - mean_firstsessions) %>% 
+#   select(-matches("mean|lga"))
+# 
+# ggplot(escalation_firsthour_xl_esca, aes(x = escalation)) + 
+#   geom_histogram()
 
 
 # *****************
@@ -390,22 +390,22 @@ kalivas_cued_allcohorts_excel_processed_c01_08_df <- kalivas_cued_allcohorts_exc
 
 ## use this code to create something similar to italy's data
 ############# self admin (lga/pr) XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-kalivas_lga_allcohorts_excel_processed %>% 
-  subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>% 
-  select(rfid, session, infusions) %>%  ### don't know how to convert these values to the escalation of heroin intake
-  mutate(intake = 20 * as.numeric(infusions)) # total consumption in ug/kg then it’s (# of infusions)(20). Our infusions are 20 ug/kg. 
-    
-kalivas_lga_allcohorts_excel_processed %>%
-  # subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>%
-  subset(session %in% c("1", "2", "3", "10", "11", "12")) %>%
-  select(rfid, session, infusions) %>%
-  pivot_wider(names_from = session, values_from = infusions, names_prefix = "session_") %>%
-  mutate_at(vars(-matches("rfid")), as.numeric) %>% 
-  mutate(mean_firstsessions = rowMeans(.[grep("session_[123]$", names(.))], na.rm =TRUE),
-         mean_latersessions = rowMeans(.[grep("session_1[012]$", names(.))], na.rm =TRUE),
-         escalation = mean_latersessions - mean_firstsessions) %>% 
-  select(-matches("mean"))
+# 
+# kalivas_lga_allcohorts_excel_processed %>% 
+#   subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>% 
+#   select(rfid, session, infusions) %>%  ### don't know how to convert these values to the escalation of heroin intake
+#   mutate(intake = 20 * as.numeric(infusions)) # total consumption in ug/kg then it’s (# of infusions)(20). Our infusions are 20 ug/kg. 
+#     
+# kalivas_lga_allcohorts_excel_processed %>%
+#   # subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>%
+#   subset(session %in% c("1", "2", "3", "10", "11", "12")) %>%
+#   select(rfid, session, infusions) %>%
+#   pivot_wider(names_from = session, values_from = infusions, names_prefix = "session_") %>%
+#   mutate_at(vars(-matches("rfid")), as.numeric) %>% 
+#   mutate(mean_firstsessions = rowMeans(.[grep("session_[123]$", names(.))], na.rm =TRUE),
+#          mean_latersessions = rowMeans(.[grep("session_1[012]$", names(.))], na.rm =TRUE),
+#          escalation = mean_latersessions - mean_firstsessions) %>% 
+#   select(-matches("mean"))
   
 ## XX ASK ITALY TEAM IF THIS SHOULD BE ACTIVE LEVERS, INACTIVE, OR INFUSIONS?? HOW TO TRANSLATE TO HEROIN INTAKE
 ## missing escalation during 1st hour 
@@ -414,33 +414,33 @@ kalivas_lga_allcohorts_excel_processed %>%
 
 
 ## XX CHECK THAT BREAKPOINT IS THE PR_STEP, IF SO, THEN THIS IS DONE 
-kalivas_lga_allcohorts_excel_processed %>% 
-  subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>% 
-  select(rfid, pr_step, infusions) %>%  ### don't know how to convert these values to the escalation of heroin intake
-  mutate_at(vars(-matches("rfid")), as.numeric) 
+# kalivas_lga_allcohorts_excel_processed %>% 
+#   subset((rfid == "933000320046651"|rfid =="933000320046468")&session %in% c("1", "2", "3", "10", "11", "12")) %>% 
+#   select(rfid, pr_step, infusions) %>%  ### don't know how to convert these values to the escalation of heroin intake
+#   mutate_at(vars(-matches("rfid")), as.numeric) 
 
 
 
   
 ############# prime extinction
-kalivas_expr_allcohorts_excel_processed %>% 
-  # subset((rfid == "933000320046651"|rfid =="933000320046468")) %>%
-  mutate_at(vars(matches("hour_")), as.numeric) %>% 
-  group_by(rfid, lever) %>% 
-  summarize(prime_sum_5_6 = hour_5 + hour_6,
-            ext_prime_sum_3_4 = hour_3 + hour_4,
-            context_sum_1_2 = hour_1 + hour_2) %>% 
-  pivot_wider(names_from = lever, values_from = c("context_sum_1_2", "ext_prime_sum_3_4", "prime_sum_5_6")) # update from tidyr, more flexibility 
-
-
-## use this code to create something similar to italy's data
-############ extinction
-kalivas_ex_allcohorts_excel_processed %>% 
-  # subset((rfid == "933000320046651"|rfid =="933000320046468")&session%in%c("1", "6")) %>% 
-  subset(session%in%c("1", "6")) %>% 
-  mutate(active_lever = as.numeric(active_lever)) %>% 
-  group_by(rfid) %>% 
-  summarize(deescalation = active_lever[2]-active_lever[1]) %>% select(rfid, deescalation)
+# kalivas_expr_allcohorts_excel_processed %>% 
+#   # subset((rfid == "933000320046651"|rfid =="933000320046468")) %>%
+#   mutate_at(vars(matches("hour_")), as.numeric) %>% 
+#   group_by(rfid, lever) %>% 
+#   summarize(prime_sum_5_6 = hour_5 + hour_6,
+#             ext_prime_sum_3_4 = hour_3 + hour_4,
+#             context_sum_1_2 = hour_1 + hour_2) %>% 
+#   pivot_wider(names_from = lever, values_from = c("context_sum_1_2", "ext_prime_sum_3_4", "prime_sum_5_6")) # update from tidyr, more flexibility 
+# 
+# 
+# ## use this code to create something similar to italy's data
+# ############ extinction
+# kalivas_ex_allcohorts_excel_processed %>% 
+#   # subset((rfid == "933000320046651"|rfid =="933000320046468")&session%in%c("1", "6")) %>% 
+#   subset(session%in%c("1", "6")) %>% 
+#   mutate(active_lever = as.numeric(active_lever)) %>% 
+#   group_by(rfid) %>% 
+#   summarize(deescalation = active_lever[2]-active_lever[1]) %>% select(rfid, deescalation)
 
 
 
@@ -477,23 +477,6 @@ kalivas_ex_allcohorts_excel_processed %>%
 # ############################
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
 
-kalivas_epm_allcohorts_excel_processed_c01_08 <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames_c01_08, "elevated_plus_maze") 
-names(kalivas_epm_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
-kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file")
-
-kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>% 
-  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
-  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
-  pivot_wider(names_from = session, values_from = closed_arm_entries:resolution)
-
-# data_breeder <- data_allsheets$elevated_plus_maze
-
-############################
-# Exp 2: OPEN FIELD TASK
-############################
-
-setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
-
 extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for use on before self admin and after self admin
   data_breeder_list <-  lapply(files, function(i) {
     
@@ -509,7 +492,7 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
     
     if(length(grep("Microchip", as.character(data_breeder[1, ]), value = T, ignore.case = T))==2|length(grep("Microchip", names(data_breeder), value = T, ignore.case = T))==2){
       data_breeder <- data_breeder[, -1]
-      }
+    }
     datavaluesbegins_index <- which(data_breeder[, 1] == "Microchip")
     
     databegins_index <- which(data_breeder[, 8] == "Date")
@@ -536,6 +519,23 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
   })
   return(data_breeder_list)
 }
+
+kalivas_epm_allcohorts_excel_processed_c01_08 <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames_c01_08, "elevated_plus_maze") 
+names(kalivas_epm_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file")
+
+kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>% 
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  pivot_wider(names_from = session, values_from = closed_arm_entries:resolution)
+
+# data_breeder <- data_allsheets$elevated_plus_maze
+
+############################
+# Exp 2: OPEN FIELD TASK
+############################
+
+setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
 
 kalivas_oft_allcohorts_excel_processed_c01_08 <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames_c01_08, "open_field") 
 names(kalivas_oft_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
