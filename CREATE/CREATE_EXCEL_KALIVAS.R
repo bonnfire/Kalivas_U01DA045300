@@ -14,7 +14,7 @@ u01.importxlsx <- function(xlname){
   names(df) <- path_sheetnames
   return(df)
 } 
-all_excel_fnames <- list.files(full.names = T, recursive = T)
+all_excel_fnames_c01_08 <- list.files(full.names = T, recursive = T) %>% grep("raw", ., value = T, invert = T)
 
 
 extract_kalivas_mapping <- function(files, sheet){
@@ -182,7 +182,8 @@ extract_process_excel_lapply <- function(files, sheet){
     df_sessiondosage <- data_breeder[1:(databegins_index-1),]
     
     df_sessiondosage <- df_sessiondosage %>%
-      select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+      # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+      select(-matches("[.][.]\\d")) %>% 
       t() %>%
       cbind(rownames(.), ., row.names = NULL) %>%
       as.data.frame(row.names = NULL) %>%
@@ -208,6 +209,21 @@ kalivas_lga_allcohorts_excel_processed <- extract_process_excel_lapply(all_excel
 # find how many individual rfids in each cohort --- kalivas_lga_allcohorts_excel_processed %>% distinct(rfid, cohort) %>% count(cohort)
 
 
+kalivas_lga_allcohorts_excel_processed_c01_08 <- extract_process_excel_lapply(all_excel_fnames_c01_08, "LgA_SA")
+names(kalivas_lga_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_lga_allcohorts_excel_processed_c01_08_df <- kalivas_lga_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file")
+
+kalivas_lga_allcohorts_excel_processed_c01_08_df <- kalivas_lga_allcohorts_excel_processed_c01_08_df %>%
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>%
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  mutate(comments = replace(comments, session == "15"&cohort=="C02", "Due to high rat attrition rate, this session was not run for all rats"),
+         resolution = replace(resolution, session == "15"&cohort=="C02", "No data for any rat for this test session")) %>% 
+  mutate(session = str_pad(session, 2, "left", "0")) %>% 
+  group_by(rfid, .by_group = T) %>% 
+  arrange(session) %>% 
+  ungroup() %>% 
+  pivot_wider(names_from = session, values_from = active_lever:discrete_stimulus)
+
 
 ## extracting data for escalation of intake_first hour.xlsx 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300")
@@ -224,8 +240,6 @@ escalation_firsthour_xl_esca <- escalation_firsthour_xl %>%
 ggplot(escalation_firsthour_xl_esca, aes(x = escalation)) + 
   geom_histogram()
 
-# mutate_at(vars(-matches("rfid")), as.numeric) %>% 
-
 
 # *****************
 ##  PR_test
@@ -236,7 +250,7 @@ extract_process_excel_shortened_lapply <- function(files, sheet){
     # data_breeder <- data_allsheets$info_from_breeder
     data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
     
-    databegins_index <- which(data_breeder[,1] == "Microchip")
+    databegins_index <- which(data_breeder[,1] == "Microchip") # row number where data begins 
     
     df_values <- data_breeder[(databegins_index + 1):nrow(data_breeder),]
     
@@ -252,7 +266,8 @@ extract_process_excel_shortened_lapply <- function(files, sheet){
     df_sessiondosage <- data_breeder[1:(databegins_index-1),]
     
     df_sessiondosage <- df_sessiondosage %>%
-      select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+      # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+      select(-matches("[.][.]\\d")) %>% 
       t() %>%
       cbind(rownames(.), ., row.names = NULL) %>%
       as.data.frame(row.names = NULL) %>%
@@ -272,8 +287,13 @@ extract_process_excel_shortened_lapply <- function(files, sheet){
   return(data_breeder_list)
 }
 
-kalivas_pr_allcohorts_excel_processed <- extract_process_excel_shortened_lapply(all_excel_fnames, "PR_test") %>% rbindlist()
+kalivas_pr_allcohorts_excel_processed_c01_08 <- extract_process_excel_shortened_lapply(all_excel_fnames_c01_08, "PR_test") 
+names(kalivas_pr_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_pr_allcohorts_excel_processed_c01_08_df <- kalivas_pr_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file")
 
+kalivas_pr_allcohorts_excel_processed_c01_08_df <- kalivas_pr_allcohorts_excel_processed_c01_08_df %>% 
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
 
 # *****************
 ##  Extinction_prime_test (Is it primed reinstatement?)
@@ -304,7 +324,8 @@ extract_process_excel_expr_lapply <- function(files, sheet){
     df_sessiondosage <- data_breeder[1:(databegins_index-1),]
 
     df_sessiondosage <- df_sessiondosage %>%
-      select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+      # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+      select(-matches("[.][.]\\d")) %>% 
       t() %>%
       cbind(rownames(.), ., row.names = NULL) %>%
       as.data.frame(row.names = NULL) %>%
@@ -328,16 +349,40 @@ extract_process_excel_expr_lapply <- function(files, sheet){
 
 
 
-kalivas_expr_allcohorts_excel_processed <- extract_process_excel_expr_lapply(all_excel_fnames, "extinction_prime_test") %>% rbindlist()
+kalivas_expr_allcohorts_excel_processed_c01_08 <- extract_process_excel_expr_lapply(all_excel_fnames_c01_08, "extinction_prime_test") 
+names(kalivas_expr_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_expr_allcohorts_excel_processed_c01_08_df <- kalivas_expr_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file")
+
+kalivas_expr_allcohorts_excel_processed_c01_08_df <- kalivas_expr_allcohorts_excel_processed_c01_08_df %>% 
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  pivot_wider(names_from = lever, values_from = comments:discrete_stimulus)
+
+
 
 # *****************
 ##  Extinction
-kalivas_ex_allcohorts_excel_processed <- extract_process_excel_lapply(all_excel_fnames, "extinction") %>% rbindlist()
+kalivas_ex_allcohorts_excel_processed_c01_08 <- extract_process_excel_lapply(all_excel_fnames_c01_08, "extinction") 
+names(kalivas_ex_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_ex_allcohorts_excel_processed_c01_08_df <- kalivas_ex_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file")
+
+kalivas_ex_allcohorts_excel_processed_c01_08_df <- kalivas_ex_allcohorts_excel_processed_c01_08_df %>% 
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  pivot_wider(names_from = session, values_from = active_lever:discrete_stimulus)
+  
+
 
 # *****************
 ##  Cued reinstatement
-kalivas_cued_allcohorts_excel_processed <- extract_process_excel_shortened_lapply(all_excel_fnames, "cued_reinstatement") %>% rbindlist()
-# names(kalivas_cued_allcohorts_excel_processed) <- paste0(names(kalivas_cued_allcohorts_excel_processed), "_xl")
+kalivas_cued_allcohorts_excel_processed_c01_08 <- extract_process_excel_shortened_lapply(all_excel_fnames_c01_08, "cued_reinstatement") 
+names(kalivas_cued_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_cued_allcohorts_excel_processed_c01_08_df <- kalivas_cued_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file") 
+
+kalivas_cued_allcohorts_excel_processed_c01_08_df <- kalivas_cued_allcohorts_excel_processed_c01_08_df %>% 
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
+  
 
 
 
@@ -432,9 +477,16 @@ kalivas_ex_allcohorts_excel_processed %>%
 # ############################
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
 
-kalivas_epm_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "elevated_plus_maze") %>% rbindlist()
+kalivas_epm_allcohorts_excel_processed_c01_08 <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames_c01_08, "elevated_plus_maze") 
+names(kalivas_epm_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file")
 
-data_breeder <- data_allsheets$elevated_plus_maze
+kalivas_epm_allcohorts_excel_processed_c01_08_df <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>% 
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  pivot_wider(names_from = session, values_from = closed_arm_entries:resolution)
+
+# data_breeder <- data_allsheets$elevated_plus_maze
 
 ############################
 # Exp 2: OPEN FIELD TASK
@@ -455,7 +507,11 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
     data_allsheets = u01.importxlsx(i)
     data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
     
+    if(length(grep("Microchip", as.character(data_breeder[1, ]), value = T, ignore.case = T))==2|length(grep("Microchip", names(data_breeder), value = T, ignore.case = T))==2){
+      data_breeder <- data_breeder[, -1]
+      }
     datavaluesbegins_index <- which(data_breeder[, 1] == "Microchip")
+    
     databegins_index <- which(data_breeder[, 8] == "Date")
     
     names(data_breeder)[1:8] <- data_breeder[datavaluesbegins_index, 1:8] %>% unlist() %>% as.character()
@@ -481,12 +537,31 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
   return(data_breeder_list)
 }
 
-kalivas_oft_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "open_field") %>% rbindlist() %>% 
-  mutate_at(vars(one_of("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")), as.numeric)
+kalivas_oft_allcohorts_excel_processed_c01_08 <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames_c01_08, "open_field") 
+names(kalivas_oft_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_oft_allcohorts_excel_processed_c01_08_df <- kalivas_oft_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file") 
+
+kalivas_oft_allcohorts_excel_processed_c01_08_df <- kalivas_oft_allcohorts_excel_processed_c01_08_df %>%
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  select(-cohort_number) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  mutate_at(vars(one_of("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")), as.numeric) %>% 
+  pivot_wider(names_from = session, values_from = center_time_seconds:total_time_traveled_seconds) 
 
 ############################
 # Exp 3: TAIL FLICK
 ############################
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
 
-kalivas_tf_allcohorts_excel_processed <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames, "tail_flick") %>% rbindlist()
+kalivas_tf_allcohorts_excel_processed_c01_08 <- extract_process_excel_repeatedmeasures2_lapply(all_excel_fnames_c01_08, "tail_flick") 
+names(kalivas_tf_allcohorts_excel_processed_c01_08) <- all_excel_fnames_c01_08
+kalivas_tf_allcohorts_excel_processed_c01_08_df <- kalivas_tf_allcohorts_excel_processed_c01_08 %>% rbindlist(idcol = "file") 
+
+kalivas_tf_allcohorts_excel_processed_c01_08_df <- kalivas_tf_allcohorts_excel_processed_c01_08_df %>%
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  select(-cohort_number) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  mutate_at(vars(matches("mean|(treatment|vehicle)_rt")), as.numeric) %>% 
+  pivot_wider(names_from = session, values_from = comments:vehicle_rt4_seconds) 
+
+
