@@ -221,7 +221,9 @@ kalivas_lga_allcohorts_excel_processed_c01_08_df <- kalivas_lga_allcohorts_excel
   mutate(session = str_pad(session, 2, "left", "0")) %>% 
   group_by(rfid, .by_group = T) %>% 
   arrange(session) %>% 
-  ungroup() %>% 
+  ungroup() 
+
+kalivas_lga_allcohorts_excel_processed_c01_08_df_wide <- kalivas_lga_allcohorts_excel_processed_c01_08_df %>% 
   pivot_wider(names_from = session, values_from = active_lever:discrete_stimulus)
 
 
@@ -355,7 +357,9 @@ kalivas_expr_allcohorts_excel_processed_c01_08_df <- kalivas_expr_allcohorts_exc
 
 kalivas_expr_allcohorts_excel_processed_c01_08_df <- kalivas_expr_allcohorts_excel_processed_c01_08_df %>% 
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
-  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
+
+kalivas_expr_allcohorts_excel_processed_c01_08_df_wide <- kalivas_expr_allcohorts_excel_processed_c01_08_df %>% 
   pivot_wider(names_from = lever, values_from = comments:discrete_stimulus)
 
 
@@ -368,7 +372,9 @@ kalivas_ex_allcohorts_excel_processed_c01_08_df <- kalivas_ex_allcohorts_excel_p
 
 kalivas_ex_allcohorts_excel_processed_c01_08_df <- kalivas_ex_allcohorts_excel_processed_c01_08_df %>% 
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
-  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) 
+
+kalivas_ex_allcohorts_excel_processed_c01_08_df_wide <- kalivas_ex_allcohorts_excel_processed_c01_08_df%>% 
   pivot_wider(names_from = session, values_from = active_lever:discrete_stimulus)
   
 
@@ -565,7 +571,7 @@ kalivas_tf_allcohorts_excel_processed_c01_08_df <- kalivas_tf_allcohorts_excel_p
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
   mutate_at(vars(matches("mean|(treatment|vehicle)_rt")), as.numeric)
 
-kalivas_epm_allcohorts_excel_processed_c01_08_df_wide <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>%   
+kalivas_tf_allcohorts_excel_processed_c01_08_df_wide <- kalivas_tf_allcohorts_excel_processed_c01_08_df %>%   
   pivot_wider(names_from = session, values_from = comments:vehicle_rt4_seconds) 
 
 

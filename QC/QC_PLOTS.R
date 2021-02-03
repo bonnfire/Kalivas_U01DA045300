@@ -148,37 +148,55 @@ lga_allsubjects_tograph %>% dplyr::filter_at(vars(matches("_raw")), is.na)
 # # for clarifying the non-kal subject id 
 # lga_allsubjects_tograph %>% dplyr::filter(session == 13, is.na(active_lever_raw))
 
-############################
-# Exp 1: EPM 
-############################
-pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_epm_excel", onefile = T)
-
-kalivas_epm_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
-kalivas_oft_allcohorts_excel_processed_tograph <- kalivas_oft_allcohorts_excel_processed %>% 
-  mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric)
 
 ############################
-# Exp 2: OPEN FIELD TASK
+# Exp 1: OPEN FIELD TASK
 ############################
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
-pdf("plot_kalivas_openfieldtask_excel", onefile = T)
 
 kalivas_oft_measures <- c("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")
-kalivas_oft_allcohorts_excel_processed_tograph <- kalivas_oft_allcohorts_excel_processed %>% 
-  mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric)
+
 # check if resolution is just ignore or na (pass)
 
-
-pdf("plot_kalivas_oft_excel.pdf", onefile = T)
+pdf("plot_kalivas_openfieldtask_excel.pdf", onefile = T)
 for (i in 1:(length(kalivas_oft_measures))){
   
-  g_cohort <- kalivas_oft_allcohorts_excel_processed_tograph %>% 
+  g_heroin_saline <- kalivas_oft_allcohorts_excel_processed_c01_08_df %>%
+    mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric) %>% 
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
     ggplot(aes(x = session, fill = heroin_or_saline)) + 
     geom_boxplot(aes_string(y = kalivas_oft_measures[i])) + 
-    facet_grid(~ cohort_number)
+    facet_grid(~ cohort)+ theme(axis.text.x = element_text(angle = 45))
+  
+  g_cohort <- kalivas_oft_allcohorts_excel_processed_c01_08_df %>%
+    mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric) %>%
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
+    ggplot(aes(x = cohort, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_oft_measures[i])) +
+    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_cohort_sex <- kalivas_oft_allcohorts_excel_processed_c01_08_df %>%
+    mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric) %>%
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
+    ggplot(aes(x = sex, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_oft_measures[i])) +
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  g_individual <- kalivas_oft_allcohorts_excel_processed_c01_08_df %>%
+    mutate_at(vars(one_of(kalivas_oft_measures)), as.numeric) %>% 
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
+    ggplot(aes(x = session, group = rfid)) + 
+    geom_line(aes_string(y = kalivas_oft_measures[i])) + 
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort and By Individual")) + 
+    theme(axis.text.x = element_text(angle = 45))
   
   print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+  print(g_individual)
+  
 }
 
 dev.off()
@@ -200,14 +218,16 @@ for (i in 1:(length(kalivas_oft_measures))){
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
     ggplot(aes(x = cohort, fill = session)) +
     geom_boxplot(aes_string(y = kalivas_oft_measures[i])) +
-    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort"))
+    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort")) + 
+    theme(axis.text.x = element_text(angle = 45))
   
   g_individual <- kalivas_oft_raw_tograph %>% 
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
     ggplot(aes(x = session, group = labanimalid)) + 
     geom_line(aes_string(y = kalivas_oft_measures[i])) + 
     facet_grid(~ cohort) + 
-    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort and By Individual"))
+    labs(title = paste0(kalivas_oft_measures[i], "Before and After Self Admin By Cohort and By Individual")) + 
+    theme(axis.text.x = element_text(angle = 45))
   
   print(g_cohort)
   print(g_individual)
@@ -217,41 +237,352 @@ dev.off()
 
 
 ############################
-# Exp 3: TAIL FLICK
+# Exp 2: TAIL FLICK
 ############################
 
 ## NOTE THAT TAIL FLICK WILL NOT HAVE RAW DATA TO QC AGAINST 
 
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
-
-kalivas_tf_measures <- grep("_rt", names(kalivas_tf_allcohorts_excel_processed), value = T)
-kalivas_tf_allcohorts_excel_processed_tograph <- kalivas_tf_allcohorts_excel_processed %>% 
-  mutate_at(vars(one_of(kalivas_tf_measures)), as.numeric)
-# check if resolution is just ignore or na (pass)
 
 
-pdf("plot_kalivas_tailflick_excel.pdf", onefile = T)
-for (i in 1:(length(kalivas_tf_measures))){
+kalivas_tf_measures <- grep("_rt", names(kalivas_tf_allcohorts_excel_processed_c01_08_df), value = T)
+kalivas_tf_allcohorts_excel_processed_tograph <- kalivas_tf_allcohorts_excel_processed_c01_08_df %>% 
+  mutate_at(vars(one_of(kalivas_tf_measures)), as.numeric) %>% 
+  mutate_at(vars(one_of(kalivas_tf_measures)), ~ replace(., resolution == "FLAG_EXPERIMENT", NA))
+
+data <- kalivas_tf_allcohorts_excel_processed_c01_08_df
+measures <- kalivas_tf_measures
+
+
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_tailflick_excel.pdf", onefile = T)
+for (i in 1:(length(measures))){
   
-  g_cohort <- kalivas_tf_allcohorts_excel_processed_tograph %>% 
+  
+  g_cohort <- data %>%
+    mutate_at(vars(one_of(measures)), as.numeric) %>%
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
+    ggplot(aes(x = cohort, fill = session)) +
+    geom_boxplot(aes_string(y = measures[i])) +
+    labs(title = paste0(measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_heroin_saline <- data %>%
+    mutate_at(vars(one_of(measures)), as.numeric) %>% 
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
     ggplot(aes(x = session, fill = heroin_or_saline)) + 
-    geom_boxplot(aes_string(y = kalivas_tf_measures[i])) + 
-    facet_grid(~ cohort_number)
-  g_sex <- kalivas_tf_allcohorts_excel_processed_tograph %>% 
-    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
-    ggplot(aes(x = session, color = heroin_or_saline, linetype = sex)) + 
-    geom_boxplot(aes_string(y = kalivas_tf_measures[i])) + 
-    facet_grid(~ cohort_number)
+    geom_boxplot(aes_string(y = measures[i])) + 
+    facet_grid(~ cohort)+ theme(axis.text.x = element_text(angle = 45))
   
-  print(g_cohort)  
-  print(g_sex)
-
+  g_cohort_sex <- data %>%
+    mutate_at(vars(one_of(measures)), as.numeric) %>%
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
+    ggplot(aes(x = sex, fill = session)) +
+    geom_boxplot(aes_string(y = measures[i])) +
+    facet_grid(~ cohort) + 
+    labs(title = paste0(measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  g_individual <- data %>%
+    mutate_at(vars(one_of(measures)), as.numeric) %>% 
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
+    ggplot(aes(x = session, group = rfid)) + 
+    geom_line(aes_string(y = measures[i])) + 
+    facet_grid(~ cohort) + 
+    labs(title = paste0(measures[i], "Before and After Self Admin By Cohort and By Individual")) + 
+    theme(axis.text.x = element_text(angle = 45))
+  
+  print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+  print(g_individual)
+  
 }
 
 dev.off()
 
-kalivas_tf_allcohorts_excel_processed %>% subset(treatment_rt4_seconds %>% is.na)
 
+
+
+############################
+# Exp 3: EPM 
+############################
+
+kalivas_epm_measures <- c("closed_arm_entries", "closed_arm_percent_time", "closed_arm_time_seconds", "open_arm_entries", "open_arm_percent_time", "open_arm_time_seconds")
+kalivas_epm_allcohorts_excel_processed_c01_08_df_tograph <- kalivas_epm_allcohorts_excel_processed_c01_08_df %>% 
+  mutate_at(vars(one_of(kalivas_epm_measures)), as.numeric) %>% 
+  mutate_at(vars(one_of(kalivas_epm_measures)), ~ replace(., resolution == "FLAG_EXPERIMENT", NA))
+
+
+
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_epm_excel.pdf", onefile = T)
+for (i in 1:(length(kalivas_epm_measures))){
+  
+  g_cohort <- kalivas_epm_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
+    ggplot(aes(x = cohort, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_epm_measures[i])) +
+    labs(title = paste0(kalivas_epm_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_heroin_saline <- kalivas_epm_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate_at(vars(one_of(kalivas_epm_measures)), as.numeric) %>% 
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
+    ggplot(aes(x = session, fill = heroin_or_saline)) + 
+    geom_boxplot(aes_string(y = kalivas_epm_measures[i])) + 
+    facet_grid(~ cohort)+ theme(axis.text.x = element_text(angle = 45))
+  
+  
+  g_cohort_sex <- kalivas_epm_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
+    ggplot(aes(x = sex, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_epm_measures[i])) +
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_epm_measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  g_individual <- kalivas_epm_allcohorts_excel_processed_c01_08_df_tograph %>% 
+    mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
+    ggplot(aes(x = session, group = rfid)) + 
+    geom_line(aes_string(y = kalivas_epm_measures[i])) + 
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_epm_measures[i], "Before and After Self Admin By Cohort and By Individual")) + 
+    theme(axis.text.x = element_text(angle = 45))
+  
+  print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+  print(g_individual)
+}
+
+dev.off()
+
+
+
+
+
+############################
+# LGA 12H 
+############################
+
+kalivas_lga_measures <- c("active_lever", "inactive_lever", "infusions")
+kalivas_lga_allcohorts_excel_processed_c01_08_df_tograph <- kalivas_lga_allcohorts_excel_processed_c01_08_df %>% 
+  mutate_at(vars(one_of(kalivas_lga_measures)), as.numeric) %>% 
+  mutate_at(vars(one_of(kalivas_lga_measures)), ~ replace(., resolution == "FLAG_EXPERIMENT", NA))
+
+
+
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_lga_excel.pdf", onefile = T)
+for (i in 1:(length(kalivas_lga_measures))){
+  
+  g_cohort <- kalivas_lga_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = cohort, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_lga_measures[i])) +
+    labs(title = paste0(kalivas_lga_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_heroin_saline <- kalivas_lga_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate_at(vars(one_of(kalivas_lga_measures)), as.numeric) %>% 
+    ggplot(aes(x = session, fill = heroin_or_saline)) + 
+    geom_boxplot(aes_string(y = kalivas_lga_measures[i])) + 
+    facet_grid(~ cohort)+ theme(axis.text.x = element_text(angle = 45))
+  
+  
+  g_cohort_sex <- kalivas_lga_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = sex, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_lga_measures[i])) +
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_lga_measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  g_individual <- kalivas_lga_allcohorts_excel_processed_c01_08_df_tograph %>% 
+    ggplot(aes(x = session, group = rfid)) + 
+    geom_line(aes_string(y = kalivas_lga_measures[i])) + 
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_lga_measures[i], "Before and After Self Admin By Cohort and By Individual")) + 
+    theme(axis.text.x = element_text(angle = 45))
+  
+  print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+  print(g_individual)
+}
+
+dev.off()
+
+
+############################
+# PR 
+############################
+
+kalivas_pr_measures <- c("pr_step", "infusions", "total_session_minutes", "active_lever", "inactive_lever", "current_ratio")
+kalivas_pr_allcohorts_excel_processed_c01_08_df_tograph <- kalivas_pr_allcohorts_excel_processed_c01_08_df %>% 
+  mutate_at(vars(one_of(kalivas_pr_measures)), as.numeric) %>% 
+  mutate_at(vars(one_of(kalivas_pr_measures)), ~ replace(., resolution == "FLAG_EXPERIMENT", NA))
+
+
+
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_pr_excel.pdf", onefile = T)
+for (i in 1:(length(kalivas_pr_measures))){
+  
+  g_cohort <- kalivas_pr_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = cohort)) +
+    geom_boxplot(aes_string(y = kalivas_pr_measures[i])) +
+    labs(title = paste0(kalivas_pr_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_heroin_saline <- kalivas_pr_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate_at(vars(one_of(kalivas_pr_measures)), as.numeric) %>% 
+    ggplot(aes(x = cohort, fill = heroin_or_saline)) + 
+    geom_boxplot(aes_string(y = kalivas_pr_measures[i])) + 
+    theme(axis.text.x = element_text(angle = 45))
+  
+  
+  g_cohort_sex <- kalivas_pr_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = cohort, fill = sex)) +
+    geom_boxplot(aes_string(y = kalivas_pr_measures[i])) +
+    labs(title = paste0(kalivas_pr_measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  
+  print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+}
+
+dev.off()
+
+
+
+
+
+############################
+# EXTINCTION PRIME 
+############################
+
+kalivas_expr_measures <- c("hour_1", "hour_2", "hour_3", "hour_4", "hour_5", "hour_6")
+kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph <- kalivas_expr_allcohorts_excel_processed_c01_08_df %>% 
+  mutate_at(vars(one_of(kalivas_expr_measures)), as.numeric) %>% 
+  mutate_at(vars(one_of(kalivas_expr_measures)), ~ replace(., resolution == "FLAG_EXPERIMENT", NA))
+
+
+
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_expr_excel.pdf", onefile = T)
+for (i in 1:(length(kalivas_expr_measures))){
+  
+  g_cohort <- kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = cohort, fill = lever)) +
+    geom_boxplot(aes_string(y = kalivas_expr_measures[i])) +
+    labs(title = paste0(kalivas_expr_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_heroin_saline <- kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate_at(vars(one_of(kalivas_expr_measures)), as.numeric) %>% 
+    ggplot(aes(x = lever, fill = heroin_or_saline)) + 
+    geom_boxplot(aes_string(y = kalivas_expr_measures[i])) + 
+    facet_grid(~ cohort)+ theme(axis.text.x = element_text(angle = 45))
+  
+  
+  g_cohort_sex <- kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = sex, fill = lever)) +
+    geom_boxplot(aes_string(y = kalivas_expr_measures[i])) +
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_expr_measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  g_individual <- kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph %>% 
+    ggplot(aes(x = lever, group = rfid)) + 
+    geom_line(aes_string(y = kalivas_expr_measures[i])) + 
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_expr_measures[i], "Before and After Self Admin By Cohort and By Individual")) + 
+    theme(axis.text.x = element_text(angle = 45))
+  
+  print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+  print(g_individual)
+}
+
+dev.off()
+
+
+
+############################
+# EXTINCTION  
+############################
+
+kalivas_ex_measures <- c("active_lever", "inactive_lever")
+kalivas_ex_allcohorts_excel_processed_c01_08_df_tograph <- kalivas_ex_allcohorts_excel_processed_c01_08_df %>% 
+  mutate_at(vars(one_of(kalivas_ex_measures)), as.numeric) %>% 
+  mutate_at(vars(one_of(kalivas_ex_measures)), ~ replace(., resolution == "FLAG_EXPERIMENT", NA))
+
+
+
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_ex_excel.pdf", onefile = T)
+for (i in 1:(length(kalivas_ex_measures))){
+  
+  g_cohort <- kalivas_ex_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = cohort, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_ex_measures[i])) +
+    labs(title = paste0(kalivas_ex_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_heroin_saline <- kalivas_ex_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate_at(vars(one_of(kalivas_ex_measures)), as.numeric) %>% 
+    ggplot(aes(x = session, fill = heroin_or_saline)) + 
+    geom_boxplot(aes_string(y = kalivas_ex_measures[i])) + 
+    facet_grid(~ cohort)+ theme(axis.text.x = element_text(angle = 45))
+  
+  
+  g_cohort_sex <- kalivas_ex_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = sex, fill = session)) +
+    geom_boxplot(aes_string(y = kalivas_ex_measures[i])) +
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_ex_measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  g_individual <- kalivas_ex_allcohorts_excel_processed_c01_08_df_tograph %>% 
+    ggplot(aes(x = session, group = rfid)) + 
+    geom_line(aes_string(y = kalivas_ex_measures[i])) + 
+    facet_grid(~ cohort) + 
+    labs(title = paste0(kalivas_ex_measures[i], "Before and After Self Admin By Cohort and By Individual")) + 
+    theme(axis.text.x = element_text(angle = 45))
+  
+  print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+  print(g_individual)
+}
+
+dev.off()
+
+
+
+
+
+############################
+# CUED REINSTATEMENT
+############################
+
+kalivas_cued_measures <- c("active_lever", "inactive_lever")
+kalivas_cued_allcohorts_excel_processed_c01_08_df_tograph <- kalivas_cued_allcohorts_excel_processed_c01_08_df %>% 
+  mutate_at(vars(one_of(kalivas_cued_measures)), as.numeric) %>% 
+  mutate_at(vars(one_of(kalivas_cued_measures)), ~ replace(., resolution == "FLAG_EXPERIMENT", NA))
+
+
+
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/plot_kalivas_cued_excel.pdf", onefile = T)
+for (i in 1:(length(kalivas_cued_measures))){
+  
+  g_cohort <- kalivas_cued_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = cohort)) +
+    geom_boxplot(aes_string(y = kalivas_cued_measures[i])) +
+    labs(title = paste0(kalivas_cued_measures[i], "Before and After Self Admin By Cohort"))
+  
+  g_heroin_saline <- kalivas_cued_allcohorts_excel_processed_c01_08_df_tograph %>%
+    mutate_at(vars(one_of(kalivas_cued_measures)), as.numeric) %>% 
+    ggplot(aes(x = cohort, fill = heroin_or_saline)) + 
+    geom_boxplot(aes_string(y = kalivas_cued_measures[i])) + 
+    theme(axis.text.x = element_text(angle = 45))
+  
+  
+  g_cohort_sex <- kalivas_cued_allcohorts_excel_processed_c01_08_df_tograph %>%
+    ggplot(aes(x = cohort, fill = sex)) +
+    geom_boxplot(aes_string(y = kalivas_cued_measures[i])) +
+    labs(title = paste0(kalivas_cued_measures[i], "Before and After Self Admin By Cohort and Sex"))
+  
+  
+  print(g_cohort)
+  print(g_heroin_saline)
+  print(g_cohort_sex)
+}
+
+dev.off()
 
 
