@@ -391,6 +391,32 @@ kalivas_cued_allcohorts_excel_processed_c01_08_df <- kalivas_cued_allcohorts_exc
   
 
 
+## compile all excels together to make a list of mapping data
+excel_compiled<-do.call("list",mget(grep("kalivas_(cued|ex|expr|pr|lga).*_df$",names(.GlobalEnv),value=TRUE)))
+names(excel_compiled) <- grep("kalivas_(cued|ex|expr|pr|lga).*_df$",names(.GlobalEnv),value=TRUE)
+excel_compiled %>% sapply(names)
+
+excel_compiled_phenotyping_metadata <- lapply(excel_compiled,function(x) x[1:10]) %>% 
+  rbindlist(idcol = "exp") %>% 
+  mutate(exp = gsub("kalivas_(.*)_allcohorts_excel_processed_c01_08_df", "\\1", exp)) %>% 
+  distinct()
+
+excel_compiled_phenotyping_metadata$rfid %>% unique %>% length
+
+# which comments are related to the file / phenotyping metadata
+lapply(excel_compiled,function(x) x %>% select(cohort, internal_id, session, comments, resolution)) %>% 
+  rbindlist(idcol = "exp") %>% 
+  mutate(exp = gsub("kalivas_(.*)_allcohorts_excel_processed_c01_08_df", "\\1", exp)) %>% 
+  distinct() %>% 
+  subset(!grepl("died|dead|death|attrition", comments, ignore.case = T)) %>% # exclude death 
+  subset(grepl("actually|run|ran|[LR]\\d+|box|switch", comments, ignore.case = T)) # find file/metadata related ones 
+
+
+
+
+
+
+
 
 ## test 
 
