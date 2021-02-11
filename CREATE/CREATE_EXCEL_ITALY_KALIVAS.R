@@ -59,7 +59,7 @@ all_excel_fnames_c01_06 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Cic
 
 
 ############################
-# OPEN FIELD TASK
+# ELEVATED PLUS MAZE
 ############################
 
 extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){ # for use on before self admin and after self admin
@@ -84,23 +84,41 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
       gsub(".*1(h|st).*", "heroin_sa_1h", .) %>% 
       gsub(".priming.*", "priming", .) %>% 
       gsub(".*extinction.*", "extinction", .)
-      
+    
     # data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
     data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
     
     if(length(grep("Transponder ID", as.character(data_breeder[1, ]), value = T, ignore.case = T))==2|length(grep("Transponder ID", names(data_breeder), value = T, ignore.case = T))==2){
       data_breeder <- data_breeder[, -1]
     }
-    datavaluesbegins_index <- grep("transponder id", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T)
     
-    if(!any(grepl("cohort", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){
+    if(!any(grepl("transponder", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the transponder id column, add a placeholder
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(transponderid = "transponder id", .before = 1) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
+    datavaluesbegins_index <- grep("transponder id", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T)[1]
+    
+    
+    if(!any(grepl("sex", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the sex id column, add a placeholder
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(sex = "sex", .after = 1) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
+    
+    if(!any(grepl("cohort|batch", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the batch column, add a placeholder
       data_breeder <- data_breeder %>% 
         tibble::add_column(batchnumber = "batchnumber", .after = 3) # chose index location instead of name bc maybe inconsistent naming
     }
     
-    if(!any(grepl("Behavioral", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){
+    if(!any(grepl("Behavioral", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the behavioral characterization column, add a placeholder
       data_breeder <- data_breeder %>% 
         tibble::add_column(behavioralcharacterizationunit = "behavioralcharacterizationunit", .after = 4) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
+    if(!any(grepl("heroin|yoked", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the heroin/yoked column, add a placeholder XX should check if this value is shared across phenotypes in the same cohort
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(heroin_salineyoked = "heroin_salineyoked", .after = 5) # chose index location instead of name bc maybe inconsistent naming
     }
     
     databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
@@ -120,7 +138,8 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
       mutate_at(vars(matches("date")), openxlsx::convertToDateTime, origin = "1900-01-01") %>% 
       mutate_at(vars(matches("date")), as.character) %>% 
       mutate(batchnumber = replace(batchnumber, batchnumber == "batchnumber", parse_number(str_match(i, "cohort \\d+"))),
-             behavioralcharacterizationunit = replace(behavioralcharacterizationunit, behavioralcharacterizationunit == "behavioralcharacterizationunit", NA)) %>% 
+             behavioralcharacterizationunit = replace(behavioralcharacterizationunit, behavioralcharacterizationunit == "behavioralcharacterizationunit", NA),
+             heroin_salineyoked = replace(heroin_salineyoked, heroin_salineyoked == "heroin_salineyoked", NA)) %>% 
       gather(var, value, -microchip, -sex, -behavioralcharacterizationunit, -batchnumber, -ratinternalid, -heroin_salineyoked) %>%
       extract(var, c("measurement", "session"), "(.*)_(\\d)") %>% 
       mutate(session = ifelse(session == 1, "before_SA", "after_SA"))  %>%
@@ -135,17 +154,46 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
 }
 
 
-kalivas_italy_oft_excel_processed_c01_08 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "openfield") 
-names(kalivas_italy_oft_excel_processed_c01_08) <- all_excel_fnames_c01_06
-kalivas_italy_oft_excel_processed_c01_08_df <- kalivas_italy_oft_excel_processed_c01_08 %>% rbindlist(idcol = "file") 
+kalivas_italy_epm_excel_processed_c01_06 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "epm") 
+## XX add more 
 
-kalivas_italy_oft_excel_processed_c01_08_df <- kalivas_italy_oft_excel_processed_c01_08_df %>%
+############################
+# OPEN FIELD TASK
+############################
+
+
+kalivas_italy_oft_excel_processed_c01_06 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "openfield") 
+names(kalivas_italy_oft_excel_processed_c01_06) <- all_excel_fnames_c01_06
+kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06 %>% rbindlist(idcol = "file") 
+
+kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06_df %>%
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   select(-cohort_number) %>% 
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
   mutate_at(vars(one_of("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")), as.numeric) 
 
-kalivas_italy_oft_excel_processed_c01_08_df_wide <- kalivas_italy_oft_excel_processed_c01_08_df %>% 
+kalivas_italy_oft_excel_processed_c01_06_df_wide <- kalivas_italy_oft_excel_processed_c01_06_df %>% 
   pivot_wider(names_from = session, values_from = center_time_seconds:total_time_traveled_seconds) 
+
+
+############################
+# TAIL FLICK 
+############################
+
+
+kalivas_italy_tf_excel_processed_c01_06 <- #XX functionname(all_excel_fnames_c01_06, "tailflick") 
+names(kalivas_italy_tf_excel_processed_c01_06) <- all_excel_fnames_c01_06
+
+
+############################
+# LGA
+############################
+
+
+kalivas_italy_tf_excel_processed_c01_06 <- #XX functionname(all_excel_fnames_c01_06, "tailflick") 
+  names(kalivas_italy_tf_excel_processed_c01_06) <- all_excel_fnames_c01_06
+
+
+
 
 

@@ -104,12 +104,12 @@ allcohorts_unfixed %>% mutate_all(as.factor) %>% summary
 #   subset(!is.na(dbcomment))
 
 # goal is to reach 0 here; waiting for email confirmation about relationship bw room, box, and pc
-KAL000 %>% subset(is.na(subject)) 
-
-allcohorts_df <- allcohorts_unfixed %>% 
-  dplyr::filter(!grepl("KAL000", subject)) %>% 
-  plyr::rbind.fill(., KAL000) %>%  # rbind with the added function of creating an NA column for nonmatching columns bw dfs A and B
-  arrange(filename, row_order)
+# KAL000 %>% subset(is.na(subject)) 
+# 
+# allcohorts_df <- allcohorts_unfixed %>% 
+#   dplyr::filter(!grepl("KAL000", subject)) %>% 
+#   plyr::rbind.fill(., KAL000) %>%  # rbind with the added function of creating an NA column for nonmatching columns bw dfs A and B
+#   arrange(filename, row_order)
 
 # consider not using this bc it is hard to parse this out from extinction
 # allcohorts_df_nodupes <- allcohorts_df[!duplicated(allcohorts_df), ] %>% mutate_all(as.character) # all from one file Cohort 2_L room_Extinction 6 because the sessions were run too short the first time and then regular times the second time 
@@ -203,13 +203,38 @@ lga_Barray_c01_08_df <- lga_Barray_c01_08 %>%
   mutate(internal_id = paste0("KAL", str_pad(parse_number(internal_id), 3, "left", "0"))) %>% 
   rowwise() %>% 
   mutate(internal_id = replace(internal_id, grepl("KAL", filename)&internal_id == "KALNA", subject)) %>% 
-  ungroup()
-  
+  ungroup() %>%
+  mutate(box = ifelse(grepl("R", roomcomp), case_when(roomcomp == "R_1"&box!="10"~paste0("1.", str_pad(box, 2, "left", "0")), ## to match with excel data
+                                                      roomcomp == "R_2"&box!="10"~paste0("2.", str_pad(box, 2, "left", "0")),
+                                                      roomcomp == "R_1"&box=="10"~paste0("1.1"),
+                                                      roomcomp == "R_2"&box=="10"~paste0("2.1")), box)) %>% 
+  rename("self_administration_box" = "box") %>% 
+  mutate(cohort = paste0("C", str_pad(parse_number(cohort), 2, "left", "0")))
 
   
 
   
-# fix the missing subjects
+# fix the missing subjects (remove and rejoin)
+lga_Barray_c01_08_df <- lga_Barray_c01_08_df %>% 
+  mutate(internal_id = ifelse(internal_id == "KAL000", NA, internal_id)) %>% 
+  left_join(excel_compiled_phenotyping_metadata %>% subset(grepl("lga", exp)) %>% distinct(internal_id, self_administration_room, self_administration_box, cohort), by = c("cohort", "self_administration_room",  "self_administration_box")) %>% # instead of joining to raw where there are sessions that are run in diff boxes lga_Barray_c01_08_df %>% subset(internal_id != "KAL000") %>% distinct(internal_id, cohort, box, self_administration_room)
+  mutate(internal_id = coalesce(internal_id.x, internal_id.y)) 
+
+# %>% 
+#   select(-matches("[.][xy]$|subject"))
+
+# temporary, for the plots 
+for(i in 1:3){
+gg <- lga_Barray_c01_08_df %>% 
+  mutate(cohort = replace(cohort, grepl("Cohort 8", filename), "C08")) %>% # lga_Barray_c01_08_df %>% subset(cohort == "CNA"&grepl("Cohort 8", filename)) %>% dim == lga_Barray_c01_08_df %>% subset(cohort == "CNA")
+  mutate(experiment = str_pad(parse_number(experiment), 2, "left", "0")) %>% 
+  ggplot(aes(x = cohort, fill = experiment)) + geom_boxplot(aes_string(y = names(lga_Barray_c01_08_df)[i]))
+print(gg)
+}
+
+
+
+# after fixing see which id's are still not valid
 lga_Barray_c01_08_df %>% 
   subset(!internal_id %in% excel_compiled_phenotyping_metadata$internal_id | is.na(internal_id)) %>% View() 
 
