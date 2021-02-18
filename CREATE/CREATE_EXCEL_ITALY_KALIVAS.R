@@ -130,10 +130,15 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
     }
     names(data_breeder) <- names(data_breeder) %>% gsub(" ", "", .) %>% tolower() %>% make_unique() %>% make_clean_names()
     df_values <- data_breeder[(databegins_index + 1):nrow(data_breeder),]
+    
+    not_all_na <- function(x) any(!is.na(x))
+    
+    
     df <- df_values %>%
       rename("microchip" = "transponderid",
              "behavioralcharacterizationunit" = "behavioralcarachterizationunit") %>%
-      rename_all(~ stringr::str_replace_all(., '.*internal.*', 'ratinternalid')) %>%       
+      rename_all(~ stringr::str_replace_all(., '.*internal.*', 'ratinternalid')) %>%    
+      # rename_all(~ stringr::str_replace_all(., '.*saline*', 'heroin_salineyoked')) %>%       
       dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data_breeder na
       mutate_at(vars(matches("date")), openxlsx::convertToDateTime, origin = "1900-01-01") %>% 
       mutate_at(vars(matches("date")), as.character) %>% 
@@ -146,8 +151,15 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
       spread(measurement, value) %>% 
       rename("cohort_number" = "batchnumber") %>% 
       mutate(cohort_number = gsub("UNICAM_", "", cohort_number)) %>%
-      rename("rfid" = "microchip")
-    return(df)
+      rename("rfid" = "microchip")  %>%
+      # select_if(not_all_na) %>%
+      mutate(heroin_salineyoked = tolower(heroin_salineyoked)) %>%
+      mutate(heroin_salineyoked = ifelse(grepl("saline|yoke", heroin_salineyoked), "saline", heroin_salineyoked)) %>% 
+      rename_all(~ stringr::str_replace_all(., '.*time.*?center', 'totaltimeincenter')) %>%    
+      rename_all(~ stringr::str_replace_all(., '.*distancetraveled.*', 'distancetraveled_cm')) %>% 
+      select(-matches("^<?NA>?$"))
+    
+    return(df) 
     
   })
   return(data_breeder_list)
@@ -155,16 +167,25 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
 
 
 kalivas_italy_epm_excel_processed_c01_06 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "epm") 
-## XX add more 
+names(kalivas_italy_epm_excel_processed_c01_06) <- all_excel_fnames_c01_06
+kalivas_italy_epm_excel_processed_c01_06_df <- kalivas_italy_epm_excel_processed_c01_06 %>% rbindlist(idcol = "file")
+
+kalivas_italy_epm_excel_processed_c01_06_df <- kalivas_italy_epm_excel_processed_c01_06_df %>% 
+  rename("cohort" = "cohort_number") %>% 
+  mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
+
+
+
 
 ############################
 # OPEN FIELD TASK
 ############################
 
 
-kalivas_italy_oft_excel_processed_c01_06 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "openfield") 
+kalivas_italy_oft_excel_processed_c01_06 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "openfield") # not sure why heroin yoked error
 names(kalivas_italy_oft_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06 %>% rbindlist(idcol = "file") 
+kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06 %>% rbindlist(idcol = "file", fill = T) ## XX temporary 
 
 kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06_df %>%
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
@@ -201,7 +222,7 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       return(df)
     }
     
-    data_allsheets = u01.importxlsx(i)
+    data_allsheets = u01.importxlsx(i) # data_allsheets = u01.importxlsx(all_excel_fnames_c01_06[2]) ## XX remove, just here for troubleshooting 
     
     names(data_allsheets) = names(data_allsheets) %>% 
       tolower() %>%
@@ -214,81 +235,139 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       gsub(".priming.*", "priming", .) %>% 
       gsub(".*extinction.*", "extinction", .)
     
-    data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+    if(any(grepl(sheet, names(data_allsheets)))){
+      # data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+      data_breeder <- data_allsheets[[grep("heroin_sa_12h", names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+      
+      if(!any(grepl("tra[n]?sponder", data_breeder[, 1] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the transponder id column, add a placeholder
+        data_breeder <- data_breeder %>% 
+          tibble::add_column(transponderid = "transponder id", .before = 1) # chose index location instead of name bc maybe inconsistent naming
+      }
+      
+      if(any(grepl("trasponder", data_breeder[, 1] %>% unlist() %>% as.character, ignore.case = T))){ # fix transponder column id typo
+        data_breeder[grep("trasponder", data_breeder[, 1] %>% unlist() %>% as.character(), ignore.case = T), 1] <- "Transponder ID"
+      }
+      
+      datavaluesbegins_index <- grep("transponder id", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T)[1]
+      
+      if(length(grep("Tran[s]?ponder ID", as.character(data_breeder[datavaluesbegins_index, ]), value = T, ignore.case = T))==2|length(grep("Tran[s]?ponder ID", names(data_breeder), value = T, ignore.case = T))==2){
+        data_breeder <- data_breeder[, -1]
+      }
+      
+      
+      if(!any(grepl("sex", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the sex id column, add a placeholder
+        data_breeder <- data_breeder %>% 
+          tibble::add_column(sex = "sex", .after = 1) # chose index location instead of name bc maybe inconsistent naming
+      }
+      
+      
+      if(!any(grepl("cohort|batch", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the batch column, add a placeholder
+        data_breeder <- data_breeder %>% 
+          tibble::add_column(batchnumber = "batchnumber", .after = 3) # chose index location instead of name bc maybe inconsistent naming
+      }
+      
+      if(!any(grepl("Behavioral", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the behavioral characterization column, add a placeholder
+        data_breeder <- data_breeder %>% 
+          tibble::add_column(behavioralcharacterizationunit = "behavioralcharacterizationunit", .after = 4) # chose index location instead of name bc maybe inconsistent naming
+      }
+      
+      if(!any(grepl("heroin|yoked", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the heroin/yoked column, add a placeholder XX should check if this value is shared across phenotypes in the same cohort
+        data_breeder <- data_breeder %>% 
+          tibble::add_column(heroin_salineyoked = "heroin_salineyoked", .after = 5) # chose index location instead of name bc maybe inconsistent naming
+      }
+      
+      # databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
+      
+      # names(data_breeder)[1:6] <- data_breeder[datavaluesbegins_index, 1:6] %>% unlist() %>% as.character()
+      # names(data_breeder)[7:ncol(data_breeder)] <- data_breeder[databegins_index, 7:ncol(data_breeder)] %>% unlist() %>% as.character()
+      make_unique = function(x, sep='_'){
+        ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+      }
+
+      df_values <- data_breeder[(datavaluesbegins_index + 1):nrow(data_breeder),]
+      
+      if(grepl("03", i)){ # make fix when they leave out the headers 
+        
+        data_breeder <- data_breeder %>% 
+          mutate_if(is.logical, as.character)
+        data_breeder[datavaluesbegins_index, 32] <- "infusions"
+        
+        data_breeder[datavaluesbegins_index, 33] <- "activelever"
+        
+        data_breeder[datavaluesbegins_index, 34] <- "inactivelever"
+      }
+      
+      names(df_values) <- data_breeder[datavaluesbegins_index,] %>% gsub(" ", "", .) %>% tolower() %>% make_unique() %>% make_clean_names() %>% make_unique()  
+      
+      df_values <- df_values %>%
+        rename("microchip" = "transponderid",
+               "cohort_number" = "batchnumber") %>% 
+        rename_all(~ stringr::str_replace_all(., '.*rat.*', 'internal_id')) %>%       
+        dplyr::filter(!is.na(internal_id)) %>% 
+        gather(var, value, -microchip, -sex, -cohort_number, -internal_id, -behavioralcharacterizationunit, -heroin_salineyoked, -selfadministrationroom, -selfadministrationbox) %>%
+        extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)", remove = F) %>%
+        mutate(measurement = coalesce(measurement, var)) %>% 
+        rowwise() %>% 
+        mutate(session = replace(session, session == "13"|measurement == "bp", "pr"),
+               session = replace(session, session %in% c("14", "15", "16"), as.character(as.numeric(session) - 1))) %>% 
+        ungroup() %>% 
+        select(-var) %>% 
+        subset(!(is.na(measurement)|measurement == "na")) %>% 
+        # spread(measurement, value) %>% 
+        mutate(selfadministrationbox = selfadministrationbox %>% as.numeric %>% round(2) %>% as.character)
+      
+      df_sessiondosage <- data_breeder[1:(datavaluesbegins_index-1),7:ncol(data_breeder)]
+      
+      not_all_na <- function(x) any(!is.na(x))
     
-    if(length(grep("Transponder ID", as.character(data_breeder[1, ]), value = T, ignore.case = T))==2|length(grep("Transponder ID", names(data_breeder), value = T, ignore.case = T))==2){
-      data_breeder <- data_breeder[, -1]
+      df_sessiondosage <- df_sessiondosage %>%
+        # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+        select_if(not_all_na) %>% 
+        t() %>%
+        # cbind(rownames(.), ., row.names = NULL) %>%
+        as.data.frame(row.names = NULL) %>%
+        mutate_all(str_trim) %>%
+        magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower %>% make_clean_names()) %>%
+        dplyr::filter(row_number() != 1) %>%
+        mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01") %>% as.character,
+               session = ifelse(grepl("\\d+", session), stringr::str_extract(session, "\\d+"), "pr")) %>% 
+        rowwise() %>% 
+        mutate(session = replace(session, session == "13", "pr"),
+               session = replace(session, session %in% c("14", "15", "16"), as.character(as.numeric(session) - 1))) %>% 
+        ungroup()
+      
+      df <- left_join(df_values, df_sessiondosage, by = "session") %>%
+        mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
+        rename("rfid" = "microchip", 
+               "cohort" = "cohort_number")
+      
+      return(df)
+    }  
+    else if(!grepl(sheet, names(data_allsheets))){
+      df <- data.frame(rfid = NA, 
+                       sex, NA, 
+                       cohort = i,
+                       internal_id = NA, 
+                       behavioralcharacterization = NA, 
+                       heroin_salineyolked = NA,
+                       selfadministrationroom = NA,
+                       selfadministrationbox = NA, 
+                       measurement = NA, 
+                       session = NA, 
+                       value = NA, 
+                       date = NA, 
+                       session_length = NA, 
+                       reinforcer = NA, 
+                       bolus_volume = NA, 
+                       dose = NA, 
+                       reinforcement_schedule = NA, 
+                       time_out = NA, 
+                       contextual_stimulus = NA, 
+                       discrete_stimulus = NA)
+      return(df)
     }
-    
-    if(!any(grepl("transponder", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the transponder id column, add a placeholder
-      data_breeder <- data_breeder %>% 
-        tibble::add_column(transponderid = "transponder id", .before = 1) # chose index location instead of name bc maybe inconsistent naming
-    }
-    
-    datavaluesbegins_index <- grep("transponder id", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T)[1]
-    
-    
-    if(!any(grepl("sex", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the sex id column, add a placeholder
-      data_breeder <- data_breeder %>% 
-        tibble::add_column(sex = "sex", .after = 1) # chose index location instead of name bc maybe inconsistent naming
-    }
-    
-    
-    if(!any(grepl("cohort|batch", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the batch column, add a placeholder
-      data_breeder <- data_breeder %>% 
-        tibble::add_column(batchnumber = "batchnumber", .after = 3) # chose index location instead of name bc maybe inconsistent naming
-    }
-    
-    if(!any(grepl("Behavioral", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the behavioral characterization column, add a placeholder
-      data_breeder <- data_breeder %>% 
-        tibble::add_column(behavioralcharacterizationunit = "behavioralcharacterizationunit", .after = 4) # chose index location instead of name bc maybe inconsistent naming
-    }
-    
-    if(!any(grepl("heroin|yoked", data_breeder[1,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the heroin/yoked column, add a placeholder XX should check if this value is shared across phenotypes in the same cohort
-      data_breeder <- data_breeder %>% 
-        tibble::add_column(heroin_salineyoked = "heroin_salineyoked", .after = 5) # chose index location instead of name bc maybe inconsistent naming
-    }
-    
-    databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
-    
-    names(data_breeder)[1:6] <- data_breeder[datavaluesbegins_index, 1:6] %>% unlist() %>% as.character()
-    names(data_breeder)[7:ncol(data_breeder)] <- data_breeder[databegins_index, 7:ncol(data_breeder)] %>% unlist() %>% as.character()
-    make_unique = function(x, sep='_'){
-      ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
-    }
-    names(data_breeder) <- names(data_breeder) %>% gsub(" ", "", .) %>% tolower() %>% make_unique() %>% make_clean_names()
-    df_values <- data_breeder[(databegins_index + 1):nrow(data_breeder),]
-    
-    df_values <- df_values %>%
-      dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data na
-      gather(var, value, -microchip, -sex, -bx_unit, -cohort_number, -internal_id, -group, -heroin_or_saline, -self_administration_room, -self_administration_box) %>%
-      extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)") %>%
-      spread(measurement, value) %>% 
-      mutate(self_administration_box = self_administration_box %>% as.numeric %>% round(2) %>% as.character)
-    
-    df_sessiondosage <- data_breeder[1:(databegins_index-1),]
-    
-    df_sessiondosage <- df_sessiondosage %>%
-      # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
-      select(-matches("[.][.]\\d")) %>% 
-      t() %>%
-      cbind(rownames(.), ., row.names = NULL) %>%
-      as.data.frame(row.names = NULL) %>%
-      mutate_all(str_trim) %>%
-      magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower) %>%
-      dplyr::filter(row_number() != 1) %>%
-      mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01") %>% as.character,
-             session = stringr::str_extract(session, "\\d+"))
-    
-    
-    df <- left_join(df_values, df_sessiondosage, by = "session") %>%
-      mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
-      rename("rfid" = "microchip", 
-             "cohort" = "cohort_number")
-    
-    return(df)
-    
   })
+  
   return(data_breeder_list)
 }
 

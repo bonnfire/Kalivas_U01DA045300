@@ -162,7 +162,7 @@ extract_process_excel_lapply <- function(files, sheet){
   data_breeder_list <-  lapply(files, function(i) {
     data_allsheets = u01.importxlsx(i)
     data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
-    
+
     databegins_index <- which(data_breeder[,1] == "Microchip")
     
     df_values <- data_breeder[(databegins_index + 1):nrow(data_breeder),]
@@ -546,6 +546,7 @@ extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for 
       spread(measurement, value) %>% 
       mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
       rename("rfid" = "microchip")
+    
     return(df)
     
   })
