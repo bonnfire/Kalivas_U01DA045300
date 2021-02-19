@@ -277,6 +277,7 @@ tailflick_italy <- function(files, sheet){ # for use on before self admin and af
     df_values <- data_breeder[(databegins_index + 1):nrow(data_breeder),]
     
     not_all_na <- function(x) any(!is.na(x))
+    diff_fxn <- function(x, y) x-y
     
     df <- df_values %>%
       rename("microchip" = "transponderid",
@@ -296,6 +297,17 @@ tailflick_italy <- function(files, sheet){ # for use on before self admin and af
       mutate(session = case_when(
         grepl("trial_ir", measurement)&session %in% c(1:8)|grepl("average", measurement)&session%in%c(1:2)|grepl("date", measurement)&session==1 ~ "before_SA", 
         grepl("trial_ir", measurement)&session %in% c(9:16)|grepl("average", measurement)&session%in%c(4:5)|grepl("date", measurement)&session==2 ~ "after_SA")) %>% 
+      mutate(var = case_when(
+        grepl("trial_ir", var)&grepl("_[1-4]$", var) ~ gsub("trial_ir50", "trial_ir50_veh", var), 
+        grepl("trial_ir", var)&grepl("_(9|1[0-2])$", var) ~ gsub("trial_ir50_(\\d+)", "\\1", var) %>% as.numeric() %>% diff_fxn(., 8) %>% as.character %>% paste0("trial_ir50_veh_", .),
+        grepl("trial_ir", var)&grepl("_([5-8])$", var) ~ gsub("trial_ir50_(\\d+)", "\\1", var) %>% as.numeric() %>% diff_fxn(., 4) %>% as.character %>% paste0("trial_ir50_trt_", .),
+        grepl("trial_ir", var)&grepl("_(1[3-6])$", var) ~ gsub("trial_ir50_(\\d+)", "\\1", var) %>% as.numeric() %>% diff_fxn(., 12) %>% as.character %>% paste0("trial_ir50_trt_", .),
+        grepl("average_1|4", var) ~ "average_veh", 
+        grepl("average_2|5", var) ~ "average_trt",
+        grepl("date_1|4", var) ~ "date", 
+        grepl("date_2|5", var) ~ "date", 
+        TRUE ~ as.character(var))) %>%
+      select(-measurement) %>% 
       spread(var, value) %>% 
       rename("cohort_number" = "batchnumber") %>% 
       mutate(cohort_number = gsub("UNICAM_", "", cohort_number)) %>%
@@ -303,6 +315,7 @@ tailflick_italy <- function(files, sheet){ # for use on before self admin and af
       # select_if(not_all_na) %>%
       mutate(heroin_salineyoked = tolower(heroin_salineyoked)) %>%
       mutate(heroin_salineyoked = ifelse(grepl("saline|yoke", heroin_salineyoked), "saline", heroin_salineyoked)) %>% 
+      mutate(date = ifelse(grepl("\\d{5}", date), as.character(openxlsx::convertToDate(date)), date)) %>% 
       rename_all(~ stringr::str_replace_all(., '.*time.*?center', 'totaltimeincenter')) %>%    
       rename_all(~ stringr::str_replace_all(., '.*distancetraveled.*', 'distancetraveled_cm')) %>% 
       select(-matches("^<?NA>?$"))
