@@ -62,6 +62,9 @@ all_excel_fnames_c01_06 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Cic
 # ELEVATED PLUS MAZE
 ############################
 
+
+all_excel_fnames_c01_06, "tailflick"
+
 extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){ # for use on before self admin and after self admin
   data_breeder_list <-  lapply(files, function(i) {
     
@@ -73,6 +76,9 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
     }
     
     data_allsheets = u01.importxlsx(i)
+    
+    # data_allsheets = u01.importxlsx(all_excel_fnames_c01_06[1])
+    
     
     names(data_allsheets) = names(data_allsheets) %>% 
       tolower() %>%
@@ -190,8 +196,7 @@ kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed
 kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06_df %>%
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   select(-cohort_number) %>% 
-  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
-  mutate_at(vars(one_of("center_time_seconds", "number_of_rears", "number_of_sterotypies", "total_cm_traveled", "total_time_traveled_seconds")), as.numeric) 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
 
 kalivas_italy_oft_excel_processed_c01_06_df_wide <- kalivas_italy_oft_excel_processed_c01_06_df %>% 
   pivot_wider(names_from = session, values_from = center_time_seconds:total_time_traveled_seconds) 
@@ -200,10 +205,119 @@ kalivas_italy_oft_excel_processed_c01_06_df_wide <- kalivas_italy_oft_excel_proc
 ############################
 # TAIL FLICK 
 ############################
+tailflick_italy <- function(files, sheet){ # for use on before self admin and after self admin
+  data_breeder_list <- lapply(files, function(i){
+    u01.importxlsx <- function(xlname){
+      path_sheetnames <- excel_sheets(xlname)
+      df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname, col_names = F) ## note the difference here, bc we don't want headers 
+      names(df) <- path_sheetnames
+      return(df)
+    }
+    
+    data_allsheets = u01.importxlsx(i)
+    # data_allsheets = u01.importxlsx(all_excel_fnames_c01_06[1])
+    names(data_allsheets) = names(data_allsheets) %>% 
+      tolower() %>%
+      str_trim() %>%
+      gsub(" ", "", .) %>% 
+      gsub("^general.*|^italy$", "generalinfo", .) %>%  # make names of sheets uniform across all cohorts
+      gsub("of", "openfield", .) %>% 
+      gsub(".*12h.*", "heroin_sa_12h", .) %>% 
+      gsub(".*1(h|st).*", "heroin_sa_1h", .) %>% 
+      gsub(".priming.*", "priming", .) %>% 
+      gsub(".*extinction.*", "extinction", .)
+    
+    # data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
+    data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+    # data_breeder <- data_allsheets[[grep("tailflick", names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+    
+    if(!any(grepl("transponder", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the transponder id column, add a placeholder
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(transponderid = "transponder id", .before = 1) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
 
+    if(length(grep("Transponder ID", as.character(data_breeder[1, ]), value = T, ignore.case = T))==2|length(grep("Transponder ID", names(data_breeder), value = T, ignore.case = T))==2){
+      data_breeder <- data_breeder[, -1]
+    }
+  
+    datavaluesbegins_index <- grep("transponder id", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T)[1]
+    
+    
+    if(!any(grepl("sex", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the sex id column, add a placeholder
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(sex = "sex", .after = 1) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
+    
+    if(!any(grepl("cohort|batch", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the batch column, add a placeholder
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(batchnumber = "batchnumber", .after = 3) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
+    if(!any(grepl("Behavioral", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the behavioral characterization column, add a placeholder
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(behavioralcharacterizationunit = "behavioralcharacterizationunit", .after = 4) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
+    if(!any(grepl("heroin|yoked", data_breeder[datavaluesbegins_index,] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the heroin/yoked column, add a placeholder XX should check if this value is shared across phenotypes in the same cohort
+      data_breeder <- data_breeder %>% 
+        tibble::add_column(heroin_salineyoked = "heroin_salineyoked", .after = 5) # chose index location instead of name bc maybe inconsistent naming
+    }
+    
+    databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
+    
+    names(data_breeder)[1:6] <- data_breeder[datavaluesbegins_index, 1:6] %>% unlist() %>% as.character()
+    names(data_breeder)[7] <- "date"
+    names(data_breeder)[8:ncol(data_breeder)] <- data_breeder[databegins_index+1, 8:ncol(data_breeder)] %>% unlist() %>% as.character %>% as.data.frame() %>% rename("varname" = ".") %>% fill(varname) %>% unlist() %>% as.character
+    make_unique = function(x, sep='_'){
+      ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
+    }
+    names(data_breeder) <- names(data_breeder) %>% gsub(" ", "", .) %>% tolower() %>% make_unique() %>% make_clean_names()
+    df_values <- data_breeder[(databegins_index + 1):nrow(data_breeder),]
+    
+    not_all_na <- function(x) any(!is.na(x))
+    
+    df <- df_values %>%
+      rename("microchip" = "transponderid",
+             "behavioralcharacterizationunit" = "behavioralcarachterizationunit") %>%
+      rename_all(~ stringr::str_replace_all(., '.*internal.*', 'ratinternalid')) %>%    
+      # rename_all(~ stringr::str_replace_all(., '.*saline*', 'heroin_salineyoked')) %>%       
+      dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data_breeder na
+      mutate_at(vars(matches("date")), openxlsx::convertToDateTime, origin = "1900-01-01") %>% 
+      mutate_at(vars(matches("date")), as.character) %>% 
+      mutate(batchnumber = replace(batchnumber, batchnumber == "batchnumber", parse_number(str_match(i, "cohort \\d+"))),
+             behavioralcharacterizationunit = replace(behavioralcharacterizationunit, behavioralcharacterizationunit == "behavioralcharacterizationunit", NA),
+             heroin_salineyoked = replace(heroin_salineyoked, heroin_salineyoked == "heroin_salineyoked", NA)) %>% 
+      gather(var, value, -microchip, -sex, -behavioralcharacterizationunit, -batchnumber, -ratinternalid, -heroin_salineyoked) %>%
+      mutate(var = replace(var, var == "date", "date_2"),
+             var = replace(var, var == "average_3", "date_1")) %>% 
+      extract(var, c("measurement", "session"), "(.*)_(\\d+)$", remove = F) %>% 
+      mutate(session = case_when(
+        grepl("trial_ir", measurement)&session %in% c(1:8)|grepl("average", measurement)&session%in%c(1:2)|grepl("date", measurement)&session==1 ~ "before_SA", 
+        grepl("trial_ir", measurement)&session %in% c(9:16)|grepl("average", measurement)&session%in%c(4:5)|grepl("date", measurement)&session==2 ~ "after_SA")) %>% 
+      spread(var, value) %>% 
+      rename("cohort_number" = "batchnumber") %>% 
+      mutate(cohort_number = gsub("UNICAM_", "", cohort_number)) %>%
+      rename("rfid" = "microchip")  %>%
+      # select_if(not_all_na) %>%
+      mutate(heroin_salineyoked = tolower(heroin_salineyoked)) %>%
+      mutate(heroin_salineyoked = ifelse(grepl("saline|yoke", heroin_salineyoked), "saline", heroin_salineyoked)) %>% 
+      rename_all(~ stringr::str_replace_all(., '.*time.*?center', 'totaltimeincenter')) %>%    
+      rename_all(~ stringr::str_replace_all(., '.*distancetraveled.*', 'distancetraveled_cm')) %>% 
+      select(-matches("^<?NA>?$"))
+    
+    return(df)
+    
+  })
+  return(data_breeder_list)
+  
+}
 
-kalivas_italy_tf_excel_processed_c01_06 <- #XX functionname(all_excel_fnames_c01_06, "tailflick") 
+kalivas_italy_tf_excel_processed_c01_06 <- tailflick_italy(all_excel_fnames_c01_06, "tailflick") 
 names(kalivas_italy_tf_excel_processed_c01_06) <- all_excel_fnames_c01_06
+kalivas_italy_tf_excel_processed_c01_06_df <- kalivas_italy_tf_excel_processed_c01_06 %>% rbindlist(fill = T, id = "file")
+
 
 
 ############################
