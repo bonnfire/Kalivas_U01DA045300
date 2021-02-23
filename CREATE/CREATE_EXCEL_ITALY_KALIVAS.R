@@ -337,9 +337,6 @@ kalivas_italy_tf_excel_processed_c01_06_df <- kalivas_italy_tf_excel_processed_c
 # LGA
 ############################
 
-
-
-
 extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
   data_breeder_list <-  lapply(files, function(i) {
     u01.importxlsx <- function(xlname){
@@ -357,14 +354,23 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       gsub(" ", "", .) %>% 
       gsub("^general.*|^italy$", "generalinfo", .) %>%  # make names of sheets uniform across all cohorts
       gsub("of", "openfield", .) %>% 
-      gsub(".*12h.*", "heroin_sa_12h", .) %>% 
-      gsub(".*1(h|st).*", "heroin_sa_1h", .) %>% 
+      gsub("^(?!infusions).*(12)h.*", "heroin_sa_12h", ., perl = T) %>% 
+      gsub("^(?!infusions).*1(h|st).*", "heroin_sa_1h", ., perl = T) %>% 
       gsub(".priming.*", "priming", .) %>% 
       gsub(".*extinction.*", "extinction", .)
     
     if(any(grepl(sheet, names(data_allsheets)))){
       # data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
       data_breeder <- data_allsheets[[grep("heroin_sa_12h", names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+      
+      ## reorder columns in specific cohorts
+      if(grepl("06", i)){ # make fix when they leave out the headers 
+        data_breeder[1:4] <- data_breeder[, c(3, 2, 1, 4)]
+      }
+      
+      if(grepl("batch-01", i, ignore.case = T)){ # make fix when they leave out the headers 
+        data_breeder[1:5] <- data_breeder[, c(2, 3, 5, 1, 4)]
+      }
       
       if(!any(grepl("tra[n]?sponder", data_breeder[, 1] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the transponder id column, add a placeholder
         data_breeder <- data_breeder %>% 
@@ -403,10 +409,10 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
           tibble::add_column(heroin_salineyoked = "heroin_salineyoked", .after = 5) # chose index location instead of name bc maybe inconsistent naming
       }
       
-      # databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
+      databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
       
-      # names(data_breeder)[1:6] <- data_breeder[datavaluesbegins_index, 1:6] %>% unlist() %>% as.character()
-      # names(data_breeder)[7:ncol(data_breeder)] <- data_breeder[databegins_index, 7:ncol(data_breeder)] %>% unlist() %>% as.character()
+      # names(data_breeder)[1:8] <- data_breeder[datavaluesbegins_index, 1:8] %>% unlist() %>% as.character()
+      # names(data_breeder)[9:ncol(data_breeder)] <- data_breeder[databegins_index, 9:ncol(data_breeder)] %>% unlist() %>% as.character()
       make_unique = function(x, sep='_'){
         ave(x, x, FUN=function(a){if(length(a) > 1){paste(a, 1:length(a), sep=sep)} else {a}})
       }
@@ -429,9 +435,12 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       df_values <- df_values %>%
         rename("microchip" = "transponderid",
                "cohort_number" = "batchnumber") %>% 
-        rename_all(~ stringr::str_replace_all(., '.*rat.*', 'internal_id')) %>%       
+        rename_all(~ stringr::str_replace_all(., 'behavioralcarachterizationunit', 'behavioralcharacterizationunit')) %>% 
+        rename_all(~ stringr::str_replace_all(., '.*(rat|animal).*?id', 'internal_id')) %>%     
+        rename_all(~ stringr::str_replace_all(., '.*room$', 'saroom')) %>%       
+        rename_all(~ stringr::str_replace_all(., '.*box$', 'sabox')) %>%       
         dplyr::filter(!is.na(internal_id)) %>% 
-        gather(var, value, -microchip, -sex, -cohort_number, -internal_id, -behavioralcharacterizationunit, -heroin_salineyoked, -selfadministrationroom, -selfadministrationbox) %>%
+        gather(var, value, -microchip, -sex, -cohort_number, -internal_id, -behavioralcharacterizationunit, -heroin_salineyoked, -saroom, -sabox) %>%
         extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)", remove = F) %>%
         mutate(measurement = coalesce(measurement, var)) %>% 
         rowwise() %>% 
@@ -439,9 +448,9 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
                session = replace(session, session %in% c("14", "15", "16"), as.character(as.numeric(session) - 1))) %>% 
         ungroup() %>% 
         select(-var) %>% 
-        subset(!(is.na(measurement)|measurement == "na")) %>% 
+        subset(!(is.na(measurement)|measurement == "na"))
         # spread(measurement, value) %>% 
-        mutate(selfadministrationbox = selfadministrationbox %>% as.numeric %>% round(2) %>% as.character)
+        # mutate(sabox = sabox %>% as.numeric %>% round(2) %>% as.character)
       
       df_sessiondosage <- data_breeder[1:(datavaluesbegins_index-1),7:ncol(data_breeder)]
       
@@ -472,13 +481,13 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
     }  
     else if(!grepl(sheet, names(data_allsheets))){
       df <- data.frame(rfid = NA, 
-                       sex, NA, 
+                       sex = NA, 
                        cohort = i,
                        internal_id = NA, 
-                       behavioralcharacterization = NA, 
-                       heroin_salineyolked = NA,
-                       selfadministrationroom = NA,
-                       selfadministrationbox = NA, 
+                       behavioralcharacterizationunit = NA, 
+                       heroin_salineyoked = NA,
+                       saroom = NA,
+                       sabox = NA, 
                        measurement = NA, 
                        session = NA, 
                        value = NA, 
@@ -502,7 +511,8 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
 
 kalivas_italy_lga_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "heroin_sa_12h") 
 names(kalivas_italy_lga_excel_processed_c01_06) <- all_excel_fnames_c01_06
-
+kalivas_italy_lga_excel_processed_c01_06_df <- kalivas_italy_lga_excel_processed_c01_06 %>% 
+  rbindlist(fill = T, idcol = "file")
 
 
 
