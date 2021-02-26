@@ -164,12 +164,12 @@ for (i in 1:(length(kalivas_italy_oft_measures))){
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
     ggplot(aes(x = session, fill = heroin_salineyoked)) + 
     geom_boxplot(aes_string(y = kalivas_italy_oft_measures[i])) + 
-    facet_grid(~ cohort_number)+ theme(axis.text.x = element_text(angle = 45))
+    facet_grid(~ cohort)+ theme(axis.text.x = element_text(angle = 45))
   
   g_cohort_number <- kalivas_italy_oft_excel_processed_c01_06_df %>%
     mutate_at(vars(one_of(kalivas_italy_oft_measures)), as.numeric) %>%
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
-    ggplot(aes(x = cohort_number, fill = session)) +
+    ggplot(aes(x = cohort, fill = session)) +
     geom_boxplot(aes_string(y = kalivas_italy_oft_measures[i])) +
     labs(title = paste0(kalivas_italy_oft_measures[i], "Before and After Self Admin By Batch"))
   
@@ -178,7 +178,7 @@ for (i in 1:(length(kalivas_italy_oft_measures))){
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>%
     ggplot(aes(x = sex, fill = session)) +
     geom_boxplot(aes_string(y = kalivas_italy_oft_measures[i])) +
-    facet_grid(~ cohort_number) + 
+    facet_grid(~ cohort) + 
     labs(title = paste0(kalivas_italy_oft_measures[i], "Before and After Self Admin By Batch and Sex"))
   
   g_individual <- kalivas_italy_oft_excel_processed_c01_06_df %>%
@@ -186,7 +186,7 @@ for (i in 1:(length(kalivas_italy_oft_measures))){
     mutate(session = factor(session, levels = c("before_SA", "after_SA"))) %>% 
     ggplot(aes(x = session, group = rfid)) + 
     geom_line(aes_string(y = kalivas_italy_oft_measures[i])) + 
-    facet_grid(~ cohort_number) + 
+    facet_grid(~ cohort) + 
     labs(title = paste0(kalivas_italy_oft_measures[i], "Before and After Self Admin By Batch and By Individual")) + 
     theme(axis.text.x = element_text(angle = 45))
   

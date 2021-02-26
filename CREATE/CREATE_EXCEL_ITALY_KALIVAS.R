@@ -360,18 +360,31 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       gsub(".*extinction.*", "extinction", .)
     
     if(any(grepl(sheet, names(data_allsheets)))){
-      # data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
-      data_breeder <- data_allsheets[[grep("heroin_sa_12h", names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+      data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+      # data_breeder <- data_allsheets[[grep("heroin_sa_12h", names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
       
       ## reorder columns in specific cohorts
-      if(grepl("06", i)){ # make fix when they leave out the headers 
-        data_breeder[1:4] <- data_breeder[, c(3, 2, 1, 4)]
+      if(grepl("06", i)&grepl("_12h", sheet)){ # make fix when they leave out the headers 
+        data_breeder[, 1:4] <- data_breeder[, c(3, 2, 1, 4)] # transponder id, sex, batch number, internal id
       }
       
-      if(grepl("batch-01", i, ignore.case = T)){ # make fix when they leave out the headers 
-        data_breeder[1:5] <- data_breeder[, c(2, 3, 5, 1, 4)]
+      if(grepl("batch-01", i, ignore.case = T)&grepl("_12h", sheet)){ # make fix when they leave out the headers 
+        data_breeder[, 1:5] <- data_breeder[, c(2, 3, 5, 1, 4)]
       }
       
+      if(grepl("batch-03", i, ignore.case = T)&grepl("_1h|priming", sheet)){ # make fix when they leave out the headers 
+        data_breeder <- data_breeder[, -1]
+      }
+      
+      if(grepl("batch-06", i, ignore.case = T)&grepl("_1h", sheet)){ # make fix when they leave out the headers 
+        data_breeder[, 1:3] <- data_breeder[, c(3, 2, 1)]
+      }
+      
+      if(grepl("batch-01", i, ignore.case = T)&grepl("_1h", sheet)){ # make fix when they leave out the headers 
+        data_breeder[, 1:3] <- data_breeder[, c(2, 3, 1)]
+      }
+      
+      # add columns
       if(!any(grepl("tra[n]?sponder", data_breeder[, 1] %>% unlist() %>% as.character, ignore.case = T))){ # if the data doesn't have the transponder id column, add a placeholder
         data_breeder <- data_breeder %>% 
           tibble::add_column(transponderid = "transponder id", .before = 1) # chose index location instead of name bc maybe inconsistent naming
@@ -381,8 +394,12 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
         data_breeder[grep("trasponder", data_breeder[, 1] %>% unlist() %>% as.character(), ignore.case = T), 1] <- "Transponder ID"
       }
       
-      datavaluesbegins_index <- grep("transponder id", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T)[1]
-      
+      if(unique(data_breeder[, 1] %>% unlist() %>% as.character) %>% length == 1 & unique(data_breeder[, 1] %>% unlist() %>% as.character) == "transponder id"){
+        datavaluesbegins_index <- grep("id", data_breeder[,2] %>% unlist() %>% as.character, ignore.case = T)[1]
+      } else{
+        datavaluesbegins_index <- grep("transponder id", data_breeder[,1] %>% unlist() %>% as.character, ignore.case = T)[1]
+      }
+            
       if(length(grep("Tran[s]?ponder ID", as.character(data_breeder[datavaluesbegins_index, ]), value = T, ignore.case = T))==2|length(grep("Tran[s]?ponder ID", names(data_breeder), value = T, ignore.case = T))==2){
         data_breeder <- data_breeder[, -1]
       }
@@ -408,9 +425,12 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
         data_breeder <- data_breeder %>% 
           tibble::add_column(heroin_salineyoked = "heroin_salineyoked", .after = 5) # chose index location instead of name bc maybe inconsistent naming
       }
-      
+
       databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
-      
+      if(grepl("05", i)&grepl("extinction", sheet)){
+        databegins_index <- grep("date", data_breeder[,8] %>% unlist() %>% as.character, ignore.case = T)
+      }
+            
       # names(data_breeder)[1:8] <- data_breeder[datavaluesbegins_index, 1:8] %>% unlist() %>% as.character()
       # names(data_breeder)[9:ncol(data_breeder)] <- data_breeder[databegins_index, 9:ncol(data_breeder)] %>% unlist() %>% as.character()
       make_unique = function(x, sep='_'){
@@ -419,7 +439,7 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
 
       df_values <- data_breeder[(datavaluesbegins_index + 1):nrow(data_breeder),]
       
-      if(grepl("03", i)){ # make fix when they leave out the headers 
+      if(grepl("03", i)&grepl("_12h", sheet)){ # make fix when they leave out the headers 
         
         data_breeder <- data_breeder %>% 
           mutate_if(is.logical, as.character)
@@ -432,6 +452,7 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       
       names(df_values) <- data_breeder[datavaluesbegins_index,] %>% gsub(" ", "", .) %>% tolower() %>% make_unique() %>% make_clean_names() %>% make_unique()  
       
+      
       df_values <- df_values %>%
         rename("microchip" = "transponderid",
                "cohort_number" = "batchnumber") %>% 
@@ -442,35 +463,100 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
         dplyr::filter(!is.na(internal_id)) %>% 
         gather(var, value, -microchip, -sex, -cohort_number, -internal_id, -behavioralcharacterizationunit, -heroin_salineyoked, -saroom, -sabox) %>%
         extract(var, c("measurement", "session"), "(\\D+_?)_(\\d+)", remove = F) %>%
-        mutate(measurement = coalesce(measurement, var)) %>% 
+        mutate(measurement = coalesce(measurement, var))
+      
+      
+      if(grepl("_12h|_1h", sheet)){
+        df_values <- df_values %>% 
         rowwise() %>% 
         mutate(session = replace(session, session == "13"|measurement == "bp", "pr"),
                session = replace(session, session %in% c("14", "15", "16"), as.character(as.numeric(session) - 1))) %>% 
         ungroup() %>% 
         select(-var) %>% 
         subset(!(is.na(measurement)|measurement == "na"))
-        # spread(measurement, value) %>% 
-        # mutate(sabox = sabox %>% as.numeric %>% round(2) %>% as.character)
+      }
       
+      if(grepl("extinction", sheet)){
+        df_values <- df_values %>% 
+          rowwise() %>% 
+          mutate(session = replace(session, session == "7"|measurement == "infusions", "relapse")) %>% 
+          ungroup() %>% 
+          select(-var) %>% 
+          subset(!(is.na(measurement)|measurement == "na"))
+      }
+      
+      if(grepl("priming", sheet)){
+        df_values <- df_values %>% 
+          rowwise() %>% 
+          mutate(session = replace(session, session == "1", "priming"),
+                 session = replace(session, session %in% as.character(c(2:7)), as.character(as.numeric(session) - 1))) %>% 
+          ungroup() %>% 
+          select(-var) %>% 
+          subset(!(is.na(measurement)|measurement == "na"))
+      }
+      
+      
+      # join to the session dosage information
       df_sessiondosage <- data_breeder[1:(datavaluesbegins_index-1),7:ncol(data_breeder)]
       
       not_all_na <- function(x) any(!is.na(x))
-    
-      df_sessiondosage <- df_sessiondosage %>%
-        # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
-        select_if(not_all_na) %>% 
-        t() %>%
-        # cbind(rownames(.), ., row.names = NULL) %>%
-        as.data.frame(row.names = NULL) %>%
-        mutate_all(str_trim) %>%
-        magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower %>% make_clean_names()) %>%
-        dplyr::filter(row_number() != 1) %>%
-        mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01") %>% as.character,
-               session = ifelse(grepl("\\d+", session), stringr::str_extract(session, "\\d+"), "pr")) %>% 
-        rowwise() %>% 
-        mutate(session = replace(session, session == "13", "pr"),
-               session = replace(session, session %in% c("14", "15", "16"), as.character(as.numeric(session) - 1))) %>% 
-        ungroup()
+      if(grepl("_12h|_1h", sheet)){
+        df_sessiondosage <- df_sessiondosage %>%
+          # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+          select_if(not_all_na) %>% 
+          t() %>%
+          # cbind(rownames(.), ., row.names = NULL) %>%
+          as.data.frame(row.names = NULL) %>%
+          mutate_all(str_trim) %>%
+          magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower %>% make_clean_names()) %>%
+          dplyr::filter(row_number() != 1) %>%
+          mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01") %>% as.character,
+                 session = ifelse(grepl("\\d+", session), stringr::str_extract(session, "\\d+"), "pr")) %>% 
+          rowwise() %>% 
+          mutate(session = replace(session, session == "13", "pr"),
+                 session = replace(session, session %in% c("14", "15", "16"), as.character(as.numeric(session) - 1))) %>% 
+          ungroup()
+      }
+      
+      if(grepl("extinction", sheet)){
+        df_sessiondosage <- df_sessiondosage %>%
+          # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+          select_if(not_all_na) %>% 
+          t() %>%
+          # cbind(rownames(.), ., row.names = NULL) %>%
+          as.data.frame(row.names = NULL) %>%
+          mutate_all(str_trim) %>%
+          magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower %>% make_clean_names()) %>%
+          dplyr::filter(row_number() != 1) %>% 
+          rename_all(~ stringr::str_replace_all(., '^na$', 'session')) %>%       
+          mutate(date = openxlsx::convertToDateTime(date, origin = "1900-01-01") %>% as.character,
+                 session = ifelse(grepl("\\d+", session), stringr::str_extract(session, "\\d+"), "relapse")) %>% 
+          rowwise() %>% 
+          mutate(session = replace(session, session == "7", "relapse")) %>% 
+          ungroup()
+      }
+      
+      if(grepl("priming", sheet)){
+        df_sessiondosage <- df_sessiondosage %>%
+          # select_if(function(x) all(!is.na(x))) %>% # only select columns that have no na
+          select_if(not_all_na) %>% 
+          t() %>%
+          # cbind(rownames(.), ., row.names = NULL) %>%
+          as.data.frame(row.names = NULL) %>%
+          mutate_all(str_trim) %>%
+          magrittr::set_colnames(.[1, ] %>% unlist() %>% as.character %>% tolower %>% make_clean_names()) %>%
+          dplyr::filter(row_number() != 1) %>% 
+          rename_all(~ stringr::str_replace_all(., '^na$', 'session')) %>%   
+          rename_all(~ stringr::str_replace_all(., '^session_hour', 'session_length')) %>%  
+          rename_all(~ stringr::str_replace_all(., '^session_phase', 'reinforcement_schedule')) %>%    
+          rowwise() %>% 
+          mutate(date = if(exists('date', where = .)) openxlsx::convertToDateTime(date, origin = "1900-01-01") %>% as.character else NA,
+                 session = replace(session, !grepl("^prim", session, ignore.case = T), stringr::str_extract(session_length, "\\d+"))) %>% 
+          mutate(session = replace(session, grepl("^prim", session, ignore.case = T), "priming")) %>% 
+          ungroup()
+      }
+      
+      
       
       df <- left_join(df_values, df_sessiondosage, by = "session") %>%
         mutate(cohort_number = gsub("MUSC_", "", cohort_number)) %>%
@@ -514,6 +600,27 @@ names(kalivas_italy_lga_excel_processed_c01_06) <- all_excel_fnames_c01_06
 kalivas_italy_lga_excel_processed_c01_06_df <- kalivas_italy_lga_excel_processed_c01_06 %>% 
   rbindlist(fill = T, idcol = "file")
 
+
+### SHA 
+kalivas_italy_sha_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "heroin_sa_1h") 
+names(kalivas_italy_sha_excel_processed_c01_06) <- all_excel_fnames_c01_06
+kalivas_italy_sha_excel_processed_c01_06_df <- kalivas_italy_sha_excel_processed_c01_06 %>% 
+  rbindlist(fill = T, idcol = "file")
+
+
+
+### Extinction
+kalivas_italy_extinction_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "extinction") 
+names(kalivas_italy_extinction_excel_processed_c01_06) <- all_excel_fnames_c01_06
+kalivas_italy_extinction_excel_processed_c01_06_df <- kalivas_italy_extinction_excel_processed_c01_06 %>% 
+  rbindlist(fill = T, idcol = "file")
+
+
+### Priming
+kalivas_italy_priming_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "priming") 
+names(kalivas_italy_priming_excel_processed_c01_06) <- all_excel_fnames_c01_06
+kalivas_italy_priming_excel_processed_c01_06_df <- kalivas_italy_priming_excel_processed_c01_06 %>% 
+  rbindlist(fill = T, idcol = "file")
 
 
 
