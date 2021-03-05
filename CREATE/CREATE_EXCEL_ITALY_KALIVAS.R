@@ -54,16 +54,64 @@ u01.importxlsx <- function(xlname){
   names(df) <- path_sheetnames
   return(df)
 } 
-all_excel_fnames_c01_06 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data/", full.names = T, recursive = T) 
+all_excel_fnames_c01_08 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data/", full.names = T, recursive = T) 
+
+
+# extract shipping information for metadata 
+kalivas_italy_extract_shipping_metadata <- function(files, sheet){
+  data_breeder_list <-  lapply(files, function(i) {
+    
+    u01.importxlsx <- function(xlname){
+      path_sheetnames <- excel_sheets(xlname)
+      df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname, col_names = F) ## note the difference here, bc we don't want headers 
+      names(df) <- path_sheetnames
+      return(df)
+    }
+    
+    data_allsheets = u01.importxlsx(i)
+    
+    names(data_allsheets) = names(data_allsheets) %>% 
+      tolower() %>%
+      str_trim() %>%
+      gsub(" ", "", .) %>% 
+      gsub("^general.*|^italy$|^shipping", "generalinfo", .) %>%  # make names of sheets uniform across all cohorts
+      gsub("of", "openfield", .) %>% 
+      gsub(".*12h.*", "heroin_sa_12h", .) %>% 
+      gsub(".*1(h|st).*", "heroin_sa_1h", .) %>% 
+      gsub(".priming.*", "priming", .) %>% 
+      gsub(".*extinction.*", "extinction", .)
+    
+    data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+    
+    df <- data_breeder 
+    names(df) <- df[1, ] %>% unlist() %>% as.character %>% make_clean_names() 
+    df <- df[-1, ]
+    
+    while(grepl("^na|^info", names(df)[1])&grepl("^na", names(df)[2])){
+      names(df) <- df[1, ] %>% unlist() %>% as.character %>% make_clean_names() 
+      df <- df[-1, ]
+    }
+    
+    return(df)
+  })
+  return(data_breeder_list)
+}
+
+kalivas_italy_shipping_metadata_c01_08 <- lapply(all_excel_fnames_c01_08, kalivas_italy_extract_shipping_metadata, "generalinfo") %>% sapply(.,'[')
+names(kalivas_italy_shipping_metadata_c01_08) <- all_excel_fnames_c01_08
+kalivas_italy_shipping_metadata_c01_08_df <- kalivas_italy_shipping_metadata_c01_08 %>% 
+  rbindlist(fill = T, idcol = "file")
+
+kalivas_italy_shipping_metadata_c01_08_df_ids <- kalivas_italy_shipping_metadata_c01_08_df %>% 
+  mutate(cohort = gsub(".*batch-(\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
+  select(cohort, transponder_id, animal_id)
 
 
 
 ############################
 # ELEVATED PLUS MAZE
 ############################
-
-
-all_excel_fnames_c01_06, "tailflick"
 
 extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){ # for use on before self admin and after self admin
   data_breeder_list <-  lapply(files, function(i) {
@@ -595,31 +643,49 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
 
 
 
-kalivas_italy_lga_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "heroin_sa_12h") 
-names(kalivas_italy_lga_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_lga_excel_processed_c01_06_df <- kalivas_italy_lga_excel_processed_c01_06 %>% 
+kalivas_italy_lga_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "heroin_sa_12h") 
+names(kalivas_italy_lga_excel_c01_08) <- all_excel_fnames_c01_08
+kalivas_italy_lga_excel_c01_08_df <- kalivas_italy_lga_excel_c01_08 %>% 
   rbindlist(fill = T, idcol = "file")
 
 
+## clean df 
+kalivas_italy_lga_excel_processed_c01_08_df <- kalivas_italy_lga_excel_c01_08_df %>% 
+  mutate(cohort = gsub(".*batch-(\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
+  left_join()
+
+kalivas_italy_shipping_metadata_c01_08_df_ids
+
+
+############################
 ### SHA 
-kalivas_italy_sha_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "heroin_sa_1h") 
-names(kalivas_italy_sha_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_sha_excel_processed_c01_06_df <- kalivas_italy_sha_excel_processed_c01_06 %>% 
+############################
+kalivas_italy_sha_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "heroin_sa_1h") 
+names(kalivas_italy_sha_excel_c01_08) <- all_excel_fnames_c01_08
+kalivas_italy_sha_excel_c01_08_df <- kalivas_italy_sha_excel_c01_08 %>% 
   rbindlist(fill = T, idcol = "file")
 
 
-
+############################
 ### Extinction
-kalivas_italy_extinction_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "extinction") 
-names(kalivas_italy_extinction_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_extinction_excel_processed_c01_06_df <- kalivas_italy_extinction_excel_processed_c01_06 %>% 
+############################
+kalivas_italy_extinction_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "extinction") 
+names(kalivas_italy_extinction_excel_c01_08) <- all_excel_fnames_c01_08
+kalivas_italy_extinction_excel_c01_08_df <- kalivas_italy_extinction_excel_c01_08 %>% 
   rbindlist(fill = T, idcol = "file")
 
+kalivas_italy_extinction_excel_c01_08_df <- kalivas_italy_extinction_excel_c01_08_df %>% 
+  mutate(saroom = parse_number(saroom) %>% as.character(),
+         sabox = tolower(sabox) %>% gsub(" ", "", .) %>% gsub("(\\d+)(\\D+)", "\\2\\1", .)) 
+## XX come back to fix cohort 03/03/2021
 
+############################
 ### Priming
-kalivas_italy_priming_excel_processed_c01_06 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_06, "priming") 
-names(kalivas_italy_priming_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_priming_excel_processed_c01_06_df <- kalivas_italy_priming_excel_processed_c01_06 %>% 
+############################
+kalivas_italy_priming_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "priming") 
+names(kalivas_italy_priming_excel_c01_08) <- all_excel_fnames_c01_08
+kalivas_italy_priming_excel_c01_08_df <- kalivas_italy_priming_excel_c01_08 %>% 
   rbindlist(fill = T, idcol = "file")
 
 

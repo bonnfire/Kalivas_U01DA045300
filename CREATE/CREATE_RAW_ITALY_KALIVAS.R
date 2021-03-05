@@ -1,9 +1,38 @@
 ## CREATE RAW ITALY KALIVAS
 setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file")
-raw_filenames_italy_kalivas <- list.files(recursive = T, full.names = T)
+raw_filenames_italy_kalivas_c02_06 <- list.files(recursive = T, full.names = T) %>% grep("cohort_0[3-6]", ., value = T)
 # raw_filenames_italy_kalivas[which(raw_filenames_italy_kalivas == "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR( F 239-240)")] <- "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR F(239-240)"
 
 ## read in excel assigning subjects based on boxes 
+
+sheets_c03_06 <- openxlsx::getSheetNames("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file/rat-box_allocation.xlsx") %>% grep("[3-6]", ., value = T)
+italy_kalivas_xl_boxes_c03_06 <- lapply(sheets_c03_06, openxlsx::read.xlsx, xlsxFile="~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file/rat-box_allocation.xlsx") %>% 
+  lapply(., function(x){
+    x <- x %>% 
+      clean_names() %>% 
+      rename_all(~ stringr::str_replace_all(., '.*animal_id|internal*', 'internal_id')) %>%    
+      rename_all(~ stringr::str_replace_all(., '.*heroin.*', 'heroin_salineyoked')) %>%    
+      rename_all(~ stringr::str_replace_all(., '.*room.*', 'saroom')) %>%    
+      rename_all(~ stringr::str_replace_all(., '.*box.*', 'sabox')) %>%    
+      rename_all(~ stringr::str_replace_all(., '^tra.*id.*', 'rfid')) %>%    
+      rename_all(~ stringr::str_replace_all(., '.*batch.*', 'cohort')) %>% 
+      mutate_all(~gsub(" ", "", .))
+  
+      return(x)
+  })
+
+italy_kalivas_xl_boxes_c03_06_df <- italy_kalivas_xl_boxes_c03_06 %>% rbindlist(fill = T) %>% 
+  rename("comments" = "x8") %>% 
+  mutate(cohort = parse_number(cohort) %>% str_pad(., 2, "left", "0") %>% paste0("C", .)) %>% 
+  rowwise() %>% 
+  mutate(sabox = paste0(str_extract(tolower(saroom), "left|right"), sabox),
+         saroom = parse_number(saroom) %>% as.character) %>% 
+  ungroup() ## XX where are the saroom 47 data
+
+
+
+
+
 
 readsubject <- function(x){
   subject <- fread(paste0("grep -i 'subject:' ", "'", x, "'"), header = F)
@@ -291,20 +320,21 @@ read.relapse <- function(x){
   # return(cued_rein)
 }
 
-relapse_raw <- lapply(grep("cued", raw_filenames_italy_kalivas, value = T, ignore.case = T), read.relapse) %>%
+relapse_raw_c02_06 <- lapply(grep("cued", raw_filenames_italy_kalivas_c02_06, value = T, ignore.case = T), read.relapse) 
+relapse_raw_c02_06_df <- relapse_raw_c02_06 %>%
   rbindlist(fill = T) 
-names(relapse_raw) <- c("box", "A", "inactive_presses", "active_presses", "pump_activation", "filename")
-relapse_raw_df <- relapse_raw %>% 
+names(relapse_raw_c02_06_df) <- c("box", "A", "inactive_presses", "active_presses", "infusions", "filename")
+relapse_raw_c02_06_df <- relapse_raw_c02_06_df %>% 
   mutate_all(as.character) %>%
   mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .))
 
-relapse_raw_df %>% mutate(box = as.numeric(box)) %>% subset(box>10) %>% dim
+relapse_raw_c02_06_df %>% mutate(box = as.numeric(box)) %>% subset(box>10) %>% dim
 
-relapse_raw_df <- relapse_raw_df %>% 
+relapse_raw_c02_06_df <- relapse_raw_c02_06_df %>% 
   mutate(sex = ifelse(grepl("[MF][(]", filename, ignore.case = T), gsub(".*([MF])[(].*", "\\1", filename), NA),
-         cohort = str_pad(parse_number(gsub(".*unicam_cohort_(\\d+)[/].*", "\\1", filename)), 2, "left", "0"),
-         exp = gsub(".*(relapse\\d+).*", "\\1", filename, ignore.case = T),
-         saline = ifelse(grepl("saline", filename, ignore.case = T), "Saline", NA))
+         cohort = str_pad(parse_number(gsub(".*unicam_cohort_(\\d+)[/].*", "\\1", filename)), 2, "left", "0") %>% paste0("C", .),
+         exp = "Cued reinstatement",
+         heroin_or_saline = ifelse(grepl("saline", filename, ignore.case = T), "saline", "heroin"))
 
 
 
