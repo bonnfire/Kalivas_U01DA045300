@@ -29,6 +29,18 @@
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
 allcohorts_allexp_filenames_c01_08 <- list.files(full.names = T, recursive = T) %>% grep("Cohort [2-8]", ., value = T) #3969 files ## c08 is still being updated 01/28/2021
 
+allcohorts_allexp_filenames_c01_08_df <- allcohorts_allexp_filenames_c01_08 %>% as.data.frame() %>% 
+  mutate_all(as.character) %>% rename("filename" = ".") %>% 
+  mutate(cohort = str_extract(filename, "Cohort \\d+"), 
+         exp = gsub("[.]/\\D+ \\d+/(\\D+)/.*", "\\1", filename)) %>% 
+  mutate(exp = case_when(
+    grepl("long", exp, ignore.case = T) ~ "lga", 
+    grepl("prime", exp, ignore.case = T) ~ "p_rein", 
+    grepl("prog", exp, ignore.case = T) ~ "pr", 
+    grepl("extinct", exp, ignore.case = T) ~ "extinction", 
+    grepl("cue", exp, ignore.case = T) ~ "cued reinstatement", 
+    TRUE ~ NA_character_
+  ))
 ## in addiction tasks 
 
 
@@ -616,39 +628,126 @@ expr_allsubjects %>% naniar::vis_miss()
 # food, water bottle, and metal toy were not placed in cage
 # session runs for 2 hours
 
-allcohorts_ex_fnames <- grep("extinction", allcohorts_allexp_filenames, ignore.case = T, value = T) #256 files
+allcohorts_ex_fnames_c01_08 <- allcohorts_allexp_filenames_c01_08_df %>% 
+  subset(grepl("extinction", exp, ignore.case = T)) %>% 
+  select(filename) %>% unlist() %>% as.character #976 files
 
-# Extract subject information
-ex_subjects <- lapply(allcohorts_ex_fnames, readsubject) %>% 
+
+readXY_ext <- function(x){
+  setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
+  
+  subject <- fread(paste0("grep -i 'subject:' ", "'", x, "'", " | grep -Po ': \\K(w|KAL)?[0-9]*'"), header = F)
+  subject <- subject %>% 
+    rename("internal_id" = "V1")
+  
+  box <- fread(paste0("grep -i 'Box:' ", "'", x, "'"), header = F)
+  box <- box %>% 
+    rename("box" = "V2") %>% 
+    select(-V1)
+  
+  startdate <- fread(paste0("grep -i 'Start Date:' ", "'", x, "'"), header = F)
+  startdate <- startdate %>% 
+    rename("startdate" = "V3") %>% 
+    select(-V1, -V2)
+  
+  exp <- fread(paste0("grep -i 'Experiment:' ", "'", x, "'"), header = F)
+  exp <- exp %>% unite(col = "exp", sep = "_", remove = TRUE, na.rm = FALSE)
+  
+  metadata <- cbind(subject, box) %>% 
+    cbind(startdate) %>% 
+    cbind(exp)
+  
+  
+  Warray <- fread(paste0("grep -iE '^(W):' ", "'", x, "'"), header = F, fill = T)
+  Warray <- Warray %>% 
+    rename("inactive_lever" = "V2") %>% 
+    select(-V1)
+  
+  Xarray <- fread(paste0("grep -iE '^(X):' ", "'", x, "'"), header = F, fill = T)
+  Xarray <- Xarray %>% 
+    rename("active_lever" = "V2") %>% 
+    select(-V1)
+  
+  data <- cbind(Warray, Xarray)
+  
+  data <- cbind(metadata, data) %>% 
+    mutate(filename = x)
+  
+  return(data)
+  
+  
+} 
+
+
+ext_raw_c01_08 <- lapply(allcohorts_ex_fnames_c01_08, readXY_ext)
+
+ext_raw_c01_08_df <- ext_raw_c01_08 %>% 
   rbindlist(fill = T) %>% 
-  rename("subjectid"= "V1") %>% 
-  group_by(filename) %>% 
-  mutate(numseq = row_number()) %>% 
-  ungroup() %>% 
-  arrange(filename, numseq)
-ex_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
+  mutate(internal_id = str_extract(internal_id, "\\d+") %>% as.numeric,
+         internal_id = paste0("KAL", str_pad(internal_id, 3, "left", "0")),
+         cohort = paste0("C", str_pad(parse_number(str_extract(filename, "Cohort \\d+")), 2, "left", "0"))) %>% 
+  mutate(day = str_extract(filename, "Day \\d+"), 
+         ext = str_extract(filename, "Extinction( )?\\d+")) %>% 
+  mutate(day = coalesce(day, ext)) %>%
+  select(-ext) %>% 
+  mutate(day = parse_number(day)) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>%  # shorten the filename
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) %>% 
+  mutate(room = ifelse(grepl("room", filename, ignore.case = T), str_match(filename, "[LOR]"), 
+    ifelse(grepl("room", exp, ignore.case = T), str_match(exp, "[LOR]"), NA)),
+  comp = ifelse(grepl("comp", filename, ignore.case = T),
+    sub(".*comp(uter)? (\\d+).*", "\\2", filename, ignore.case = T) %>% str_trim(),
+    ifelse(grepl("comp", exp, ignore.case = T), parse_number(str_extract(tolower(exp), "comp(uter)?( |_)?\\d+")), NA))) %>% 
+  mutate(compbox = ifelse(!is.na(comp), paste0(comp, ".", str_pad(box, 2, "left", "0")), box)) %>% 
+  distinct()
 
-read_WX <- function(x){
-  WX <- fread(paste0("grep -irEn '^(W|X):' ", "'", x, "'"), header = F, fill = T)
-  WX$filename <- x 
-  return(WX)
-}
+ext_raw_c01_08_df %>% get_dupes(internal_id, day) %>% dim
 
-ex_WX <- lapply(allcohorts_ex_fnames, read_WX) %>% rbindlist(fill = T) %>%
-  tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
-  rename("value" = "V2") %>%
-  mutate(rownum = as.numeric(rownum)) %>% 
-  arrange(filename, rownum) # ignore the warning message: expected 2 pieces; this is expected
-ex_W <- ex_WX %>% 
-  dplyr::filter(var == "W") %>% 
-  cbind(ex_subjects$subjectid, .) %>% 
-  rename("subjectid" = "ex_subjects$subjectid",
-         "inactive_lever" = "value") 
-ex_X <- ex_WX %>% 
-  dplyr::filter(var == "X") %>% 
-  cbind(ex_subjects$subjectid, .) %>% 
-  rename("subjectid" = "ex_subjects$subjectid",
-         "active_lever" = "value")
+## correct lab animal id's with excel
+ext_raw_c01_08_df_id <- ext_raw_c01_08_df %>% 
+  mutate_at(vars(matches("room|box")), as.character) %>% 
+  full_join(kalivas_ex_allcohorts_excel_processed_c01_08_df_wide %>% 
+              mutate(self_administration_box = as.character(self_administration_box),
+                     self_administration_box = ifelse(self_administration_room == "R"&grepl("\\d[.]1$", self_administration_box), gsub("([.])(1)$", "\\1\\20", self_administration_box), self_administration_box)) %>% 
+              select(cohort, internal_id, self_administration_room, self_administration_box, matches("comments")), by = c("room" = "self_administration_room", "compbox" = "self_administration_box", "cohort")) %>% 
+  mutate(internal_id.x = ifelse((is.na(internal_id.x)& !is.na(internal_id.y))|internal_id.x != internal_id.y&!(grepl("box", comments_2)|grepl("box", comments_3)), internal_id.y, internal_id.x))
+
+ext_raw_c01_08_df_id <- ext_raw_c01_08_df_id %>%
+  add_count(internal_id.x, day) %>% 
+  subset(!(inactive_lever == 0 & active_lever == 0 & n != 1 & !is.na(internal_id.x))) %>% 
+  subset(!(cohort == "C04"&room == "R"&grepl("^1[.]0[1-4]", compbox)))
+  # get_dupes(internal_id.x, day) %>% dim
+
+# clean up extra columns
+# back to the df object
+ext_raw_c01_08_df <- ext_raw_c01_08_df_id %>% 
+  rename(internal_id = "internal_id.x") %>% 
+  select(cohort, internal_id, day, inactive_lever, active_lever, room, compbox, startdate, filename, matches("comments"))
+
+
+ext_raw_c01_08_df_wide <- ext_raw_c01_08_df %>% 
+  select(-filename, -compbox, -matches("comments")) %>% 
+  subset(!is.na(day)) %>% 
+  # mutate(compbox = ifelse(grepl("box", comments_2), parse_number(str_extract(comments_2, "box.*\\d")), 
+  #                         ifelse(grepl("box", comments_3), parse_number(str_extract(comments_3, "box.*\\d")), compbox))) %>%
+  pivot_wider(
+    names_from = day,
+    names_sep = "_",
+    
+    # names_glue = "{value}_{day}",
+    values_from = c( inactive_lever, active_lever, startdate)
+  ) %>% 
+  left_join(kalivas_ex_allcohorts_excel_processed_c01_08_df_wide %>% 
+              mutate(self_administration_box = ifelse(self_administration_room == "R"&grepl("\\d[.]1$", self_administration_box), gsub("([.])(1)$", "\\1\\20", self_administration_box), self_administration_box)) %>% 
+              select(internal_id, cohort, self_administration_box) %>%
+              rename("compbox" = "self_administration_box"), 
+            by = c("internal_id", "cohort"))
+
+
+
+
+
+
 
 ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
   mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
@@ -710,65 +809,62 @@ merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_le
 # objective is to assess the conditioned reinforcing properties of cue light and tone that was paired with the heroin infusion during self admin training 
 
 
-allcohorts_rein_fnames <- grep("cued reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #41 files
+allcohorts_rein_fnames_c01_08 <-allcohorts_allexp_filenames_c01_08_df %>% 
+  subset(grepl("cued reinstatement", exp, ignore.case = T)) %>% 
+           select(filename) %>% unlist() %>% as.character #161 files
 
-# Extract subject information
-rein_subjects <- lapply(allcohorts_rein_fnames, readsubject) %>% 
+
+readXY_cued <- function(x){
+  setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
+  
+  subject <- fread(paste0("grep -i 'subject:' ", "'", x, "'", " | grep -Po ': \\K(w|KAL)?[0-9]*'"), header = F)
+  subject <- subject %>% 
+    rename("internal_id" = "V1")
+  
+  box <- fread(paste0("grep -i 'Box:' ", "'", x, "'"), header = F)
+  box <- box %>% 
+    rename("box" = "V2") %>% 
+    select(-V1)
+  
+  startdate <- fread(paste0("grep -i 'Start Date:' ", "'", x, "'"), header = F)
+  startdate <- startdate %>% 
+    rename("startdate" = "V3") %>% 
+    select(-V1, -V2)
+  
+  metadata <- cbind(subject, box) %>% 
+    cbind(startdate)
+    
+  Warray <- fread(paste0("grep -iE '^(W):' ", "'", x, "'"), header = F, fill = T)
+  Warray <- Warray %>% 
+    rename("inactive_lever" = "V2") %>% 
+    select(-V1)
+  
+  Xarray <- fread(paste0("grep -iE '^(X):' ", "'", x, "'"), header = F, fill = T)
+  Xarray <- Xarray %>% 
+    rename("active_lever" = "V2") %>% 
+    select(-V1)
+  
+  data <- cbind(Warray, Xarray)
+  
+  data <- cbind(metadata, data) %>% 
+    mutate(filename = x)
+  
+  return(data)
+  
+  
+} 
+
+
+cued_rein_raw_c01_08 <- lapply(allcohorts_rein_fnames_c01_08, readXY_cued)
+
+cued_rein_raw_c01_08_df <- cued_rein_raw_c01_08 %>% 
   rbindlist(fill = T) %>% 
-  rename("subjectid"= "V1") %>% 
-  group_by(filename) %>% 
-  mutate(numseq = row_number()) %>% 
-  ungroup() %>% 
-  arrange(filename, numseq)
-rein_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
-
-rein_W <- lapply(allcohorts_rein_fnames, function(x){
-  WX <- fread(paste0("grep -iEn '^(W|X):' ", "'", x, "'"), header = F, fill = T)
-  WX$filename <- x 
-  return(WX)
-}) %>% rbindlist(fill = T) %>%
-  tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
-  rename("value" = "V2") %>%
-  mutate(rownum = as.numeric(rownum)) %>% 
-  arrange(filename, rownum) %>% 
-  dplyr::filter(var == "W") %>% 
-  arrange(filename, rownum) %>% 
-  cbind(rein_subjects$subjectid, .) %>% 
-  rename("subjectid" = "rein_subjects$subjectid",
-         "inactive_lever" = "value") 
-
-rein_X <- lapply(allcohorts_rein_fnames, function(x){
-  WX <- fread(paste0("grep -iEn '^(W|X):' ", "'", x, "'"), header = F, fill = T)
-  WX$filename <- x 
-  return(WX)
-}) %>% rbindlist(fill = T) %>%
-  tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% 
-  rename("value" = "V2") %>%
-  mutate(rownum = as.numeric(rownum)) %>% 
-  arrange(filename, rownum) %>% 
-  dplyr::filter(var == "X") %>% 
-  cbind(rein_subjects$subjectid, .) %>% 
-  rename("subjectid" = "rein_subjects$subjectid",
-         "active_lever" = "value")
-
-rein_allsubjects <- merge(rein_W[, c("subjectid", "inactive_lever")], rein_X[, c("subjectid", "active_lever", "filename")]) %>% 
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0"))) %>% 
-  # left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
-  left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
-  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
-  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>% # get file date 
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
-  distinct() %>% 
-  arrange(cohort, labanimalid) %>% 
-  select(-c("dob")) %>%  
-  select(cohort, sex, rfid, labanimalid, date, inactive_lever, active_lever, experimentage, filename, comments, resolution)
-
-rein_allsubjects %>% naniar::vis_miss()
-### most of the NA are dead animals BUT check because there might be exceptions # make excel vs raw graph esp for KAL043 because there seem to be wrong data
-
+  mutate(internal_id = str_extract(internal_id, "\\d+") %>% as.numeric,
+         internal_id = paste0("KAL", str_pad(internal_id, 3, "left", "0"))) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>%  # shorten the filename
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) 
+  
+         
 
 
 

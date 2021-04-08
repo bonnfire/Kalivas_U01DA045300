@@ -159,27 +159,30 @@ expr_allsubjects_tocompare <- kalivas_expr_measures %>% gsub("_(raw|excel)", "",
 # }
 
 
-##  Extinction ## CAN'T FIGURE OUT THE KAL SUBJECT ID!! 
+
+
+
 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
-
-kalivas_ex_allcohorts_excel_processed 
-ex_allsubjects
+ 
+# excel = kalivas_ex_allcohorts_excel_processed_c01_08_df_wide 
+# raw = ext_raw_c01_08_df_wide
 
 # uniform variable session_length_hours, reinforcer, bolus_volume,ml, dose_ug_kg_infusion, reinforcement_schedule, time_out_seconds, discrete_stimulus
 
-ex_allsubjects_tograph <- left_join(kalivas_ex_allcohorts_excel_processed, ex_allsubjects[,c("internal_id", "inactive_lever", "active_lever", "session", "filename")] , by = c("internal_id", "session")) ## doesn't look right because of the multiple inactive levers... and inaccurate
-names(ex_allsubjects_tograph) <- mgsub::mgsub(names(ex_allsubjects_tograph), c("\\.x", "\\.y"), c("_excel", "_raw")) %>% gsub(" ", "", .)
+# ex_allsubjects_tograph <- left_join( kalivas_ex_allcohorts_excel_processed_c01_08_df_wide, ext_raw_c01_08_df_wide[,c("internal_id", "inactive_lever", "active_lever", "session", "filename")] , by = c("internal_id")) ## doesn't look right because of the multiple inactive levers... and inaccurate
+ex_allsubjects_tograph <- full_join(ext_raw_c01_08_df_wide, kalivas_ex_allcohorts_excel_processed_c01_08_df_wide, by = c("cohort", "internal_id"))
+names(ex_allsubjects_tograph) <- mgsub::mgsub(names(ex_allsubjects_tograph), c("\\.x", "\\.y"), c("_raw", "_excel")) %>% gsub(" ", "", .)
 
 kalivas_ex_measures <- names(ex_allsubjects_tograph)[grepl("raw|excel", names(ex_allsubjects_tograph) )] %>% sort()
 ex_allsubjects_tograph <- ex_allsubjects_tograph %>% 
   mutate_at(kalivas_ex_measures, as.numeric)
 # create plots 
 
-pdf("kalivas_expr.pdf", onefile = T)
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/kalivas_expr.pdf", onefile = T)
 for (i in seq(1, length(kalivas_ex_measures), 2)) {
   g <-  ex_allsubjects_tograph %>% 
-    dplyr::filter(!grepl("separate", comments)) %>% 
+    # dplyr::filter(!grepl("separate", comments)) %>% 
     ggplot(aes_string(x = kalivas_ex_measures[i], y = kalivas_ex_measures[i+1])) + 
     geom_point() + 
     geom_abline(intercept = 0 , slope = 1) +
@@ -204,15 +207,45 @@ ex_allsubjects_tocompare <- kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) 
         select(matches(.x)) %>%
         reduce(`==`)) %>%
   set_names(paste0("isequal_", kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) %>% unique)) %>%
-  bind_cols(ex_allsubjects_tograph, .) 
-# add the following line to subset data that don't match in all of the measures 
-# %>% filter_at(vars(starts_with("isequal")), any_vars(. == FALSE))
+  bind_cols(ex_allsubjects_tograph, .)
 
-# pr_unverified <- list()
-# for (i in seq(1, length(kalivas_pr_measures), 2)) {
-#   pr_unverified <- pr_allsubjects_tograph %>% 
-#     dplyr::filter(kalivas_pr_measures[i] != kalivas_pr_measures[i+1])
-# }
+# add the following line to subset data that don't match in all of the measures 
+ex_allsubjects_tocompare %>% filter_at(vars(starts_with("isequal")), any_vars(. == FALSE))
+
+
+## create excel to be qc'ed 
+ex_qc <- ex_allsubjects_tocompare %>% 
+  # left_join() %>% 
+  select(cohort, internal_id, room, compbox, matches("lever"), -matches("isequal")) %>%
+  pivot_longer(
+    cols = inactive_lever_1_raw:inactive_lever_6_excel,
+    names_to = c("day", "active_lever", "inactive_lever"),
+    names_pattern = "(.*_.*)_(\\d+)_(.*)",
+    values_to = "count"
+  ) %>% 
+  rename("value" = "inactive_lever") %>% 
+  # mutate(value = paste0(day, "_", value)) %>% 
+  # select(-day) %>% 
+  rename("lever" = "day",
+         "day" = "active_lever") %>% 
+  spread(value, count) %>% 
+  mutate(QC_diff = excel - raw,
+         QC = ifelse(QC_diff == 0 | is.na(QC_diff), "pass", "fail"))
+  
+ex_qc %>% 
+  select(QC) %>% table()
+
+ex_qc %>% 
+  subset(QC == "fail") %>% 
+  mutate(day = as.character(day)) %>% 
+  left_join(ext_raw_c01_08_df %>% 
+              mutate(day = as.character(day)) %>% 
+              select(internal_id, day, filename), by = c("internal_id", "day")) %>% 
+  openxlsx::write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/QC files/ex_tobeqc_c01_08.xlsx")
+
+
+
+
 
 
 
@@ -227,7 +260,12 @@ ex_allsubjects_tocompare <- kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) 
 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
 
-kalivas_cued_allcohorts_excel_processed 
+full_join(kalivas_cued_allcohorts_excel_processed_c01_08_df, cued_rein_raw_c01_08_df, by = "internal_id") %>% 
+  naniar::vis_miss()
+
+full_join(kalivas_cued_allcohorts_excel_processed_c01_08_df, cued_rein_raw_c01_08_df, by = "internal_id") %>% 
+  subset(is.na(inactive_lever.y)&is.na(resolution)) %>% View()
+
 rein_allsubjects
 
 # uniform variable session_length_hours, reinforcer, bolus_volume,ml, dose_ug_kg_infusion, reinforcement_schedule, time_out_seconds, discrete_stimulus
