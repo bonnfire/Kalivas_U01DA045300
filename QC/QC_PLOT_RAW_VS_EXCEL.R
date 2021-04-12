@@ -108,22 +108,18 @@ pr_allsubjects_tocompare <- kalivas_pr_measures %>% gsub("_(raw|excel)", "", .) 
 
 
 ####### extinction prime 
-setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
 
-# XX NOT UPDATED uniform variable session_length_hours, reinforcer, bolus_volume,ml, dose_ug_kg_infusion, reinforcement_schedule, time_out_seconds, discrete_stimulus
+kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph <- full_join(expr_raw_c01_09_df, kalivas_expr_allcohorts_excel_processed_c01_08_df_wide , by = c("cohort", "internal_id"))
+names(kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph) <- mgsub::mgsub(names(kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph), c("\\.x", "\\.y"), c("_raw", "_excel")) %>% gsub(" ", "", .)
 
-expr_allsubjects_tograph <- left_join(kalivas_expr_allcohorts_excel_processed, expr_allsubjects[,c("internal_id", "lever", paste0("hour_", 1:6), "filename")] , by = c("internal_id", "lever"))
-names(expr_allsubjects_tograph) <- mgsub::mgsub(names(expr_allsubjects_tograph), c("\\.x", "\\.y"), c("_excel", "_raw")) %>% gsub(" ", "", .)
-
-kalivas_expr_measures <- names(expr_allsubjects_tograph)[grepl("raw|excel", names(expr_allsubjects_tograph) )] %>% sort()
-expr_allsubjects_tograph <- expr_allsubjects_tograph %>% 
+kalivas_expr_measures <- names(kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph)[grepl("raw|excel", names(kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph) )] %>% sort()
+kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph <- kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph %>% 
   mutate_at(kalivas_expr_measures, as.numeric)
 # create plots 
 
-pdf("kalivas_expr.pdf", onefile = T)
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/kalivas_expr.pdf", onefile = T)
 for (i in seq(1, length(kalivas_expr_measures), 2)) {
-  g <-  expr_allsubjects_tograph %>% 
-    dplyr::filter(!grepl("separate", comments)) %>% 
+  g <-  kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph %>% 
     ggplot(aes_string(x = kalivas_expr_measures[i], y = kalivas_expr_measures[i+1])) + 
     geom_point() + 
     geom_abline(intercept = 0 , slope = 1) +
@@ -144,11 +140,11 @@ dev.off()
 
 
 expr_allsubjects_tocompare <- kalivas_expr_measures %>% gsub("_(raw|excel)", "", .) %>% unique %>% 
-  map(~ expr_allsubjects_tograph %>% 
+  map(~ kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph %>% 
         select(matches(.x)) %>%
         reduce(`==`)) %>%
   set_names(paste0("isequal_", kalivas_expr_measures %>% gsub("_(raw|excel)", "", .) %>% unique)) %>%
-  bind_cols(expr_allsubjects_tograph, .) 
+  bind_cols(kalivas_expr_allcohorts_excel_processed_c01_08_df_tograph, .) 
 # add the following line to subset data that don't match in all of the measures 
 # %>% filter_at(vars(starts_with("isequal")), any_vars(. == FALSE))
 
@@ -160,8 +156,43 @@ expr_allsubjects_tocompare <- kalivas_expr_measures %>% gsub("_(raw|excel)", "",
 
 
 
+## create excel to be qc'ed 
+expr_qc <- expr_allsubjects_tocompare %>% 
+  # left_join() %>% 
+  select(cohort, internal_id, room, compbox, matches("hour"), -matches("isequal")) %>%
+  pivot_longer(
+    cols = hour_1_inactive_raw:hour_6_inactive_excel,
+    names_to = c("day", "active_lever", "inactive_lever"),
+    names_pattern = "(.*_.*)_(inactive|active)_(raw|excel)",
+    values_to = "count"
+  ) %>% 
+  rename("value" = "inactive_lever") %>% 
+  # mutate(value = paste0(day, "_", value)) %>% 
+  # select(-day) %>% 
+  rename("lever" = "day",
+         "day" = "active_lever") %>% 
+  spread(value, count) %>% 
+  mutate(QC_diff = excel - raw,
+         QC = ifelse(QC_diff == 0 | is.na(QC_diff), "pass", "fail"))
+                       # (is.na(excel)&is.na(raw)&is.na(QC_diff)), "pass", ifelse(is.na(QC_diff)&(!is.na(excel)|!is.na(raw)), "fail", "fail"))) # XX come back to figure out 
+
+expr_qc %>% 
+  select(QC) %>% table(exclude = NULL) %>% prop.table()
+
+expr_qc %>% 
+  subset(QC == "fail") %>% 
+  mutate(day = as.character(day)) %>% 
+  left_join(expr_allsubjects_tocompare %>%
+              select(internal_id, filename, matches("comments")), by = c("internal_id")) %>% 
+  openxlsx::write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/QC files/expr_tobeqc_c01_08.xlsx")
 
 
+
+
+
+
+
+### EXTINCTION
 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
  
@@ -255,7 +286,6 @@ ex_qc %>%
 
 
 
-
 ##  Cued reinstatement
 
 setwd("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC")
@@ -270,7 +300,7 @@ rein_allsubjects
 
 # uniform variable session_length_hours, reinforcer, bolus_volume,ml, dose_ug_kg_infusion, reinforcement_schedule, time_out_seconds, discrete_stimulus
 ## note that we are joining excel TO raw
-cuedrein_allsubjects_tograph <- left_join(rein_allsubjects, kalivas_cued_allcohorts_excel_processed[,c("internal_id", "cohort", "rfid", "sex", "inactive_lever", "active_lever", "self_administration_room", "self_administration_box", "heroin_or_saline")], by = c("labanimalid" = "internal_id", "cohort", "rfid", "sex")) ## doesn't look right because of the multiple inactive levers... and inaccurate
+cuedrein_allsubjects_tograph <- full_join(cued_rein_raw_c01_08_df, kalivas_cued_allcohorts_excel_processed_c01_08_df[,c("internal_id", "cohort", "rfid", "sex", "inactive_lever", "active_lever", "self_administration_room", "self_administration_box", "heroin_or_saline")], by = c("internal_id", "cohort"))
 names(cuedrein_allsubjects_tograph) <- mgsub::mgsub(names(cuedrein_allsubjects_tograph), c("\\.x", "\\.y"), c("_raw", "_excel")) %>% gsub(" ", "", .)
 
 kalivas_rein_measures <- names(cuedrein_allsubjects_tograph)[grepl("raw|excel", names(cuedrein_allsubjects_tograph) )] %>% sort()
@@ -278,10 +308,10 @@ cuedrein_allsubjects_tograph <- cuedrein_allsubjects_tograph %>%
   mutate_at(kalivas_rein_measures, as.numeric)
 # create plots 
 
-pdf("kalivas_rein.pdf", onefile = T)
+pdf("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/github/Kalivas_U01DA045300/QC/kalivas_rein.pdf", onefile = T)
 for (i in seq(1, length(kalivas_rein_measures), 2)) {
   g <-  cuedrein_allsubjects_tograph %>% 
-    dplyr::filter(!grepl("separate", comments)) %>% 
+    # dplyr::filter(!grepl("separate", comments)) %>% 
     ggplot(aes_string(x = kalivas_rein_measures[i], y = kalivas_rein_measures[i+1])) + 
     geom_point() + 
     geom_abline(intercept = 0 , slope = 1) +
@@ -301,12 +331,12 @@ for (i in seq(1, length(kalivas_rein_measures), 2)) {
 dev.off()
 
 
-ex_allsubjects_tocompare <- kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) %>% unique %>% 
-  map(~ ex_allsubjects_tograph %>% 
+cued_rein_allsubjects_tocompare <- kalivas_rein_measures %>% gsub("_(raw|excel)", "", .) %>% unique %>% 
+  map(~ cuedrein_allsubjects_tograph %>% 
         select(matches(.x)) %>%
         reduce(`==`)) %>%
-  set_names(paste0("isequal_", kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) %>% unique)) %>%
-  bind_cols(ex_allsubjects_tograph, .) 
+  set_names(paste0("isequal_", kalivas_rein_measures %>% gsub("_(raw|excel)", "", .) %>% unique)) %>%
+  bind_cols(cuedrein_allsubjects_tograph, .) 
 # add the following line to subset data that don't match in all of the measures 
 # %>% filter_at(vars(starts_with("isequal")), any_vars(. == FALSE))
 
@@ -315,6 +345,38 @@ ex_allsubjects_tocompare <- kalivas_ex_measures %>% gsub("_(raw|excel)", "", .) 
 #   pr_unverified <- pr_allsubjects_tograph %>% 
 #     dplyr::filter(kalivas_pr_measures[i] != kalivas_pr_measures[i+1])
 # }
+
+
+
+## create excel to be qc'ed 
+cuedrein_qc <- cuedrein_allsubjects_tograph %>% 
+  # left_join() %>% 
+  select(cohort, internal_id, room, compbox, matches("lever")) %>%
+  pivot_longer(
+    cols = inactive_lever_raw:active_lever_excel,
+    names_to = c("active_lever", "inactive_lever"),
+    names_pattern = "(.*_.*)_(.*)",
+    values_to = "count"
+  ) %>% 
+  rename("value" = "inactive_lever") %>% 
+  # mutate(value = paste0(day, "_", value)) %>% 
+  # select(-day) %>% 
+  rename("lever" = "active_lever") %>% 
+  spread(value, count) %>% 
+  mutate(QC_diff = excel - raw,
+         QC = ifelse(QC_diff == 0 | is.na(QC_diff), "pass", "fail"))
+
+cuedrein_qc %>% 
+  select(QC) %>% table()
+
+cuedrein_qc %>% 
+  subset(QC == "fail") %>% 
+  left_join(cued_rein_raw_c01_08_df %>% 
+              select(internal_id, filename), by = c("internal_id")) %>% 
+  openxlsx::write.xlsx("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/QC files/cuedrein_tobeqc_c01_08.xlsx")
+
+
+
 
 
 

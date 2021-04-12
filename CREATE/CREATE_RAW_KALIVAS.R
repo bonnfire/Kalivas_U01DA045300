@@ -27,9 +27,9 @@
 
 #### 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts_allexp_filenames_c01_08 <- list.files(full.names = T, recursive = T) %>% grep("Cohort [2-8]", ., value = T) #3969 files ## c08 is still being updated 01/28/2021
+allcohorts_allexp_filenames_c01_09 <- list.files(full.names = T, recursive = T) %>% grep("Cohort [2-9]", ., value = T) #3969 files 
 
-allcohorts_allexp_filenames_c01_08_df <- allcohorts_allexp_filenames_c01_08 %>% as.data.frame() %>% 
+allcohorts_allexp_filenames_c01_09_df <- allcohorts_allexp_filenames_c01_09 %>% as.data.frame() %>% 
   mutate_all(as.character) %>% rename("filename" = ".") %>% 
   mutate(cohort = str_extract(filename, "Cohort \\d+"), 
          exp = gsub("[.]/\\D+ \\d+/(\\D+)/.*", "\\1", filename)) %>% 
@@ -551,75 +551,132 @@ if(pr_allsubjects %>% subset(cohort != cohort_xl|is.na(cohort_xl)) %>% nrow() ==
 # first 4 hours is extinction training; 2 hours left = receive injection of 0.25 mg/kg of heroin subcutaneous (heroin prime) XX ASKING OKSANA IS THIS SEEMS STANDARD
 # assess how the drug being "on board" affects drug-seeking behavior
 
-allcohorts_expr_fnames <- grep("Primed reinstatement", allcohorts_allexp_filenames, ignore.case = T, value = T) #46 files
 
 
-# Extract subject information
-expr_subjects <- lapply(allcohorts_expr_fnames, readsubject) %>% 
-  rbindlist(fill = T) %>% 
-  rename("subjectid"= "V1")
-expr_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
+allcohorts_expr_fnames_c01_09 <- allcohorts_allexp_filenames_c01_09_df %>% 
+  subset(grepl("p_rein", exp, ignore.case = T)) %>% 
+  select(filename) %>% unlist() %>% as.character #212 files
 
 
-# get A (inactive) lever presses 
-readAarray <- function(x){
+readXY_expr <- function(x){
+  setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
+  
+  subject <- fread(paste0("grep -i 'subject:' ", "'", x, "'", " | grep -Po ': \\K(w|KAL)?[0-9]*'"), header = F)
+  subject <- subject %>% 
+    rename("internal_id" = "V1")
+  
+  box <- fread(paste0("grep -i 'Box:' ", "'", x, "'"), header = F)
+  box <- box %>% 
+    rename("box" = "V2") %>% 
+    select(-V1)
+  
+  startdate <- fread(paste0("grep -i 'Start Date:' ", "'", x, "'"), header = F)
+  startdate <- startdate %>% 
+    rename("startdate" = "V3") %>% 
+    select(-V1, -V2)
+  
+  exp <- fread(paste0("grep -i 'Experiment:' ", "'", x, "'"), header = F)
+  exp <- exp %>% unite(col = "exp", sep = "_", remove = TRUE, na.rm = FALSE)
+  
+  metadata <- cbind(subject, box) %>% 
+    cbind(startdate) %>% 
+    cbind(exp)
+  
+  # get A (inactive) lever presses 
   Aarray <- fread(paste0("awk '/A:/{flag=1;next}/B:/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
-  return(Aarray)
-} ## checkin with Apurva
-
-expr_Aarray <- lapply(allcohorts_expr_fnames, readAarray) %>% rbindlist(fill = T)
-expr_Aarray_indices <- grep("^0:$", expr_Aarray$V1)
-split_Aarray_expr <- split(expr_Aarray, cumsum(1:nrow(expr_Aarray) %in% expr_Aarray_indices))
-processedAdata_expr <- lapply(split_Aarray_expr, function(x){
-  indexremoved <- x %>% select(-V1)
-  Aarray <- as.vector(t(data.matrix(indexremoved)))
-  Aarray <- Aarray[!is.na(Aarray)]
-  Aarray <- colSums(matrix(Aarray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
-  # Aarray <- data.frame(inactive_leverpresses = Aarray[1:6], time_bin = paste0("inactive_hour_", 1:6))
-  Aarray <- data.frame(leverpresses = Aarray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "inactive")
-  return(Aarray)
-})
-names(processedAdata_expr) <- expr_subjects$subjectid
-processedAdata_expr_wide <- processedAdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, leverpresses)
-
-# get D (active) lever presses
-readDarray <- function(x){
+  
   Darray <- fread(paste0("awk '/D:/{flag=1;next}/E/{flag=0}flag' ", "'", x, "'"), header = F, fill = T)
-  return(Darray)
-} ## checkin with Apurva
 
-expr_Darray <- lapply(allcohorts_expr_fnames, readDarray) %>% rbindlist(fill = T)
-expr_Darray_indices <- grep("^0:$", expr_Darray$V1)
-split_Darray_expr <- split(expr_Darray, cumsum(1:nrow(expr_Darray) %in% expr_Darray_indices))
-processedDdata_expr <- lapply(split_Darray_expr, function(x){
-  indexremoved <- x %>% select(-V1)
-  Darray <- as.vector(t(data.matrix(indexremoved)))
-  Darray <- Darray[!is.na(Darray)]
-  Darray <- colSums(matrix(Darray, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
-  # Darray <- data.frame(active_leverpresses = Darray[1:6], time_bin = paste0("active_hour_", 1:6))
-  Darray <- data.frame(leverpresses = Darray[1:6], time_bin = paste0("hour_", paste0(1:6)), lever = "active")
-  return(Darray)
-})
-names(processedDdata_expr) <- expr_subjects$subjectid
-processedDdata_expr_wide <- processedDdata_expr %>% rbindlist(idcol = "subjectid") %>% spread(time_bin, leverpresses)
+  
+  expr_Aarray <- function(x){
+    indices <- grep("^0:$", x$V1)
+    x_split <- split(x, cumsum(1:nrow(x) %in% indices))
+    
+    data_list <- lapply(x_split, function(x){
+      indexremoved <- x %>% select(-V1)
+      array <- as.vector(t(data.matrix(indexremoved)))
+      array <- array[!is.na(array)]
+      array <- colSums(matrix(array, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
+        
+      data <- data.frame(leverpresses = array[1:6], time_bin = paste0("hour_", paste0(1:6), "_inactive")) %>%
+        spread(time_bin, leverpresses)
+      
+      return(data)
+    })  %>% rbindlist()
+    return(data_list)
+  }
+  
+  Aarray <- expr_Aarray(Aarray)
+  
+  expr_Darray <- function(x){
+    indices <- grep("^0:$", x$V1)
+    x_split <- split(x, cumsum(1:nrow(x) %in% indices))
+    
+    data_list <- lapply(x_split, function(x){
+      indexremoved <- x %>% select(-V1)
+      array <- as.vector(t(data.matrix(indexremoved)))
+      array <- array[!is.na(array)]
+      array <- colSums(matrix(array, nrow=2)) # take the sumes of every other row by forming a matrix and taking the column sums
+      
+      data <- data.frame(leverpresses = array[1:6], time_bin = paste0("hour_", paste0(1:6), "_active")) %>%
+        spread(time_bin, leverpresses)
+      
+      return(data)
+    })  %>% rbindlist()
+    return(data_list)
+  }
+  
+  Darray <- expr_Darray(Darray)
+  
+  
+  data <- cbind(Aarray, Darray)
+  
+  data <- cbind(metadata, data) %>% 
+    mutate(filename = x)
+  
+  return(data)
+  
+  
+} 
 
-expr_allsubjects <- rbind(processedAdata_expr_wide, processedDdata_expr_wide) %>%  
-  merge(expr_subjects)  %>%
-  mutate(subjectid = as.character(subjectid),
-         subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
-  left_join(kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>% 
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>% 
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (date - dob) %>% as.numeric %>% round) %>% 
-  distinct() %>% 
-  arrange(cohort, internal_id) %>% 
-  select(-c("dob")) %>%  
-  select(cohort, sex, rfid, internal_id, date, everything())
-expr_allsubjects %>% naniar::vis_miss()
 
 
 
+expr_raw_c01_09 <- lapply(allcohorts_expr_fnames_c01_09, readXY_expr)
+
+expr_raw_c01_09_df <- expr_raw_c01_09 %>% 
+  rbindlist(fill = T) %>% 
+  mutate(internal_id = str_extract(internal_id, "\\d+") %>% as.numeric,
+         internal_id = paste0("KAL", str_pad(internal_id, 3, "left", "0")),
+         cohort = paste0("C", str_pad(parse_number(str_extract(filename, "Cohort \\d+")), 2, "left", "0"))) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>%  # shorten the filename
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) %>% 
+  mutate(room = ifelse(grepl("room", filename, ignore.case = T), str_match(filename, "[LOR]"), 
+                       ifelse(grepl("room", exp, ignore.case = T), str_match(exp, "[LOR]"), NA)),
+         comp = ifelse(grepl("comp", filename, ignore.case = T),
+                       sub(".*comp(uter)? (\\d+).*", "\\2", filename, ignore.case = T) %>% str_trim(),
+                       ifelse(grepl("comp", exp, ignore.case = T), parse_number(str_extract(tolower(exp), "comp(uter)?( |_)?\\d+")), NA))) %>% 
+  mutate(compbox = ifelse(!is.na(comp), paste0(comp, ".", str_pad(box, 2, "left", "0")), box)) %>% 
+  distinct()
+
+# clean up dupe id's 
+expr_raw_c01_09_df %>% get_dupes(internal_id)
+
+expr_raw_c01_09_df <- expr_raw_c01_09_df %>% 
+  subset(!grepl("[/]Prime Extinction", filename)) # remove dupes
+  
+# clean up columns
+expr_raw_c01_09_df <- expr_raw_c01_09_df  %>% 
+  select(cohort, internal_id, matches("hour"), room, compbox, startdate, filename)
+  
+  
+  
+  
+  
+  
+  
+  
+  
 # *****************
 ##  Extinction
 
@@ -748,53 +805,6 @@ ext_raw_c01_08_df_wide <- ext_raw_c01_08_df %>%
 
 
 
-
-ex_allsubjects <- merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")),
-         session = gsub(".*Extinction ", "", filename),
-         self_administration_room = sub(".*MUSC_Cohort \\d+?_(.*?) room.*", "\\1", filename) %>% str_trim(),
-         cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0")) %>% 
-  subset(subjectid != "KAL00"&inactive_lever !=0) %>% 
-  left_join(WFU_Kalivas_test_df[,c("cohort", "sex", "rfid", "dob", "labanimalid")], ., by = c("labanimalid" = "subjectid")) %>% # get rat basic info
-  left_join(., kalivas_cohort_xl[, c("internal_id", "rfid", "comments", "resolution")], by = c("labanimalid" = "internal_id", "rfid")) %>% # join comments to explain missing data
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>% # shorten the filename
-  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>% # get file date 
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         experimentage = (date - dob) %>% as.numeric %>% round) 
-## JOIN THIS AFTER RESOLVING THE COHORT.X AND COHORT.Y ISSUE
-
-# %>%
-#   distinct() %>% 
-#   arrange(cohort, labanimalid) 
-# %>% 
-#   select(-c("dob")) %>%  
-#   select(cohort, sex, rfid, labanimalid, date, session, inactive_lever, active_lever, experimentage, filename, comments, resolution)
-
-ex_subjects %>% subset(as.numeric(subjectid) < 41) %>% distinct(filename)
-merge(ex_W[, c("subjectid", "inactive_lever")], ex_X[, c("subjectid", "active_lever", "filename")]) %>%
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")),
-         session = gsub(".*Extinction ", "", filename),
-         self_administration_room = sub(".*MUSC_Cohort \\d+?_(.*?) room.*", "\\1", filename) %>% str_trim(),
-         cohort = str_pad(sub(".*Cohort (.*?)/.*", "\\1", filename), 2, side = "left", pad = "0"))
-# %>% 
-
-#   mutate(subjectid = as.character(subjectid),
-#          subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
-#   left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id")], ., by = c("internal_id"= "subjectid")) %>% 
-#   mutate(filename = gsub(".*MUSC_", "", filename)) %>% 
-#   left_join(., allcohorts_df[, c("startdate", "filename")]) %>% 
-#   mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-#          experimentage = (startdate - dob) %>% as.numeric %>% round,
-#          session = gsub(".*Extinction ", "", filename)) %>% 
-#   distinct() %>% 
-#   arrange(cohort_number, internal_id) %>% 
-#   select(-c("dob")) %>%  
-#   select(cohort_number, sex, rfid, internal_id, session, startdate, inactive_lever, active_lever, experimentage, filename) 
-# ### most of the NA are dead animals BUT check because there might be exceptions
-
-
 # *****************
 ##  Cued reinstatement
 
@@ -831,9 +841,14 @@ readXY_cued <- function(x){
     rename("startdate" = "V3") %>% 
     select(-V1, -V2)
   
+  
+  exp <- fread(paste0("grep -i 'Experiment:' ", "'", x, "'"), header = F)
+  exp <- exp %>% unite(col = "exp", sep = "_", remove = TRUE, na.rm = FALSE)
+  
   metadata <- cbind(subject, box) %>% 
-    cbind(startdate)
-    
+    cbind(startdate) %>% 
+    cbind(exp)
+  
   Warray <- fread(paste0("grep -iE '^(W):' ", "'", x, "'"), header = F, fill = T)
   Warray <- Warray %>% 
     rename("inactive_lever" = "V2") %>% 
@@ -857,14 +872,42 @@ readXY_cued <- function(x){
 
 cued_rein_raw_c01_08 <- lapply(allcohorts_rein_fnames_c01_08, readXY_cued)
 
+# join into df and extract metadata
 cued_rein_raw_c01_08_df <- cued_rein_raw_c01_08 %>% 
   rbindlist(fill = T) %>% 
   mutate(internal_id = str_extract(internal_id, "\\d+") %>% as.numeric,
-         internal_id = paste0("KAL", str_pad(internal_id, 3, "left", "0"))) %>% 
+         internal_id = paste0("KAL", str_pad(internal_id, 3, "left", "0")),
+         internal_id = ifelse((grepl("NA", internal_id)|is.na(internal_id))&grepl("KAL", filename), str_extract(filename, "KAL\\d+"), internal_id), 
+         cohort = paste0("C", str_pad(parse_number(str_extract(filename, "Cohort \\d+")), 2, "left", "0"))) %>% 
   mutate(filename = gsub(".*MUSC_", "", filename)) %>%  # shorten the filename
-  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) 
-  
-         
+  mutate(startdate = unlist(startdate) %>% as.character() %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) %>%
+  mutate(room = ifelse(grepl("room", filename, ignore.case = T), str_match(filename, "[LOR]"), 
+                       ifelse(grepl("room", exp, ignore.case = T), str_match(exp, "[LOR]"), NA)),
+         comp = ifelse(grepl("comp", filename, ignore.case = T),
+                       sub(".*comp(uter)? (\\d+).*", "\\2", filename, ignore.case = T) %>% str_trim(),
+                       ifelse(grepl("comp", exp, ignore.case = T), parse_number(str_extract(tolower(exp), "comp(uter)?( |_)?\\d+")), NA))) %>% 
+  mutate(compbox = ifelse(!is.na(comp), paste0(comp, ".", str_pad(box, 2, "left", "0")), box)) %>% 
+  distinct()
+
+
+
+cued_rein_raw_c01_08_df %>% get_dupes(internal_id) %>% dim
+
+## correct lab animal id's with excel
+cued_rein_raw_c01_08_df_id <- cued_rein_raw_c01_08_df %>% 
+  mutate_at(vars(matches("room|box")), as.character) %>% 
+  full_join(kalivas_cued_allcohorts_excel_processed_c01_08_df %>% 
+              mutate(self_administration_box = as.character(self_administration_box),
+                     self_administration_box = ifelse(self_administration_room == "R"&grepl("\\d[.]1$", self_administration_box), gsub("([.])(1)$", "\\1\\20", self_administration_box), self_administration_box)) %>% 
+              select(cohort, internal_id, self_administration_room, self_administration_box, matches("comments")), by = c("room" = "self_administration_room", "compbox" = "self_administration_box", "cohort")) %>% 
+  mutate(internal_id.x = ifelse((is.na(internal_id.x)& !is.na(internal_id.y))|internal_id.x != internal_id.y, internal_id.y, internal_id.x))
+
+# clean up extra columns
+# back to the df object
+cued_rein_raw_c01_08_df <- cued_rein_raw_c01_08_df_id %>% 
+  rename(internal_id = "internal_id.x") %>% 
+  select(cohort, internal_id, inactive_lever, active_lever, room, compbox, startdate, filename, matches("comments"))
+
 
 
 
