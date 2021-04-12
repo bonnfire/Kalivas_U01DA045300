@@ -431,113 +431,101 @@ lga_allsubjects %>% naniar::vis_miss()
 # active lever = always right (20 ug/kg/infusion; infusion volume is 100 ul); inactive lever = always left
 # terminate sessions after 12 hours, or after 1 hour of the next ratio not being achieveed  (seems like most can use start or end date bc the sessions are generally only a few hours long)
 
-# starting cohort xx, immediately after session ended,
-setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts_pr_fnames <- grep("progressive", allcohorts_allexp_filenames, ignore.case = T, value = T) #47 files
-
-# Extract subject information
-pr_subjects <- lapply(allcohorts_pr_fnames, readsubject) %>%
-  rbindlist(fill = T) %>%
-  rename("subjectid"= "V1") %>%
-  group_by(filename) %>%
-  mutate(numseq = row_number()) %>%
-  ungroup() %>%
-  arrange(filename, numseq) %>% 
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")))
-
-pr_subjects %>% dplyr::filter(is.na(subjectid)) # check for no na
-
-# P array contains the break points and the O value contains the PR step at which the rat terminated at to give PR_step;
-# M contains the totaL_session_minutes; and B array contains  inactive lever, active lever, infusion, and current ratio information
-readParray <- function(x){
-  Parray <- fread(paste0("awk '/P:/{flag=1;next}/S:/{flag=0; exit}flag' ", "'", x, "'"), header = F, fill = T)
-  return(Parray)
-} ## checkin with Apurva
-readBarray <- function(x){
-  Barray <- fread(paste0("grep -a1 --no-group-separator -En '(B):' ", "'", x, "'", " | grep -E '( 0):'"), header = F, fill = T)
-  Barray$filename <- x
-  return(Barray)
-}
-readM_O <- function(x){
-  M_O <- fread(paste0("grep -a1 --no-group-separator -En '(M|O):' ", "'", x, "'", " | grep -E '(M|O):'"), header = F, fill = T)
-  M_O$filename <- x
-  return(M_O)
-}
 
 
-pr_Parray <- lapply(allcohorts_pr_fnames, readParray) %>% rbindlist(fill = T) %>% # since this array is the same for all files; you only need one copy and then use the  O value to extract
-  select(-V1) %>%
-  data.matrix() %>%
-  t() %>%
-  as.vector() %>%
-  prepend(1)
-pr_Parray <- prepend(pr_Parray, 0)
+allcohorts_pr_fnames_c01_09 <- allcohorts_allexp_filenames_c01_09_df %>% 
+  subset(grepl("^pr$", exp, ignore.case = T)) %>% 
+  select(filename) %>% unlist() %>% as.character #202 files
 
-pr_Barray <- lapply(allcohorts_pr_fnames, readBarray) %>% rbindlist(fill = T) %>%
-  select(-c(V2, V7)) %>%
-  dplyr::rename("rownum" = "V1",
-              "inactive_lever" = "V3",
-              "active_lever" = "V4",
-              "infusions" = "V5",
-              "current_ratio" = V6) %>%
-  mutate(rownum = gsub("-", "", rownum) %>% as.numeric) %>%
-  arrange(filename, rownum) %>%
-  cbind(pr_subjects$subjectid) %>%
-  rename("subjectid" = "pr_subjects$subjectid") %>%
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")))
 
-pr_M_O <- lapply(allcohorts_pr_fnames, readM_O) %>% rbindlist(fill = T) %>%
-  tidyr::separate(V1, c("rownum", "var"), sep = ":") %>% # ignore warning message about 2 pieces bc colon is found twice and the default behavior to remove it is okay
-  rename("value" = "V2")
+readXY_pr <- function(x){
+  setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
+  
+  subject <- fread(paste0("grep -i 'subject:' ", "'", x, "'", " | grep -Po ': \\K(w|KAL)?[0-9]*'"), header = F)
+  subject <- subject %>% 
+    rename("internal_id" = "V1")
+  
+  box <- fread(paste0("grep -i 'Box:' ", "'", x, "'"), header = F)
+  box <- box %>% 
+    rename("box" = "V2") %>% 
+    select(-V1)
+  
+  startdate <- fread(paste0("grep -i 'Start Date:' ", "'", x, "'"), header = F)
+  startdate <- startdate %>% 
+    rename("startdate" = "V3") %>% 
+    select(-V1, -V2)
+  
+  exp <- fread(paste0("grep -i 'Experiment:' ", "'", x, "'"), header = F)
+  exp <- exp %>% unite(col = "exp", sep = "_", remove = TRUE, na.rm = FALSE)
+  
+  metadata <- cbind(subject, box) %>% 
+    cbind(startdate) %>% 
+    cbind(exp)
+  
+  
+  ## pull out data 
+  # P array contains the break points and the O value contains the PR step at which the rat terminated at to give PR_step;
+  # M contains the totaL_session_minutes; and B array contains  inactive lever, active lever, infusion, and current ratio information
+    
+  Barray <- fread(paste0("grep -a1 --no-group-separator -E '(B):' ", "'", x, "'", " | grep -E '( 0):'"), header = F, fill = T)
+  Barray <- Barray %>% 
+    select(-c(V1, V6)) %>%
+    dplyr::rename("inactive_lever" = "V2",
+                  "active_lever" = "V3",
+                  "infusions" = "V4",
+                  "current_ratio" = "V5")
 
-pr_O_vals <- pr_M_O %>%
-  dplyr::filter(var == "O") %>%
-  cbind(pr_subjects$subjectid) %>%
-  dplyr::select(-c("rownum", "var")) %>%
-  mutate(value = value + 1)  %>% # prevent the 0 digit issue
-  rename("subjectid" = "pr_subjects$subjectid") %>%
-  mutate(subjectid = str_extract(subjectid, "\\d+") %>% as.numeric,
-         subjectid = paste0("KAL", str_pad(subjectid, 3, "left", "0")))
+    M <- fread(paste0("grep --no-group-separator -E 'M:' ", "'", x, "'", " | grep -E 'M:'"), header = F, fill = T) %>% 
+      select(-c(V1)) %>% 
+      dplyr::rename("total_session_minutes" = "V2")
+    
+    Parray <- c(0, 1, 2, 4, 6, 9, 12, 15, 20, 25, 32, 40, 50, 62, 77, 95, 118, 145, 178, 219, 268, 328, 402, 492, 603, 737, 901, 1102, 1347, 1646, 2012, 2459, 3004)
+    O <- fread(paste0("grep --no-group-separator -E 'O:' ", "'", x, "'", " | grep -E 'O:'"), header = F, fill = T) %>% 
+      select(-c(V1)) %>% 
+      dplyr::rename("value" = "V2") %>% 
+      mutate(value = value + 1) # prevent the 0 digit issue
+  
+    O$pr_step <- Parray[O$value]
+  
+  
+  data <- cbind(Barray, M) %>% 
+    cbind(O)
+  
+  data <- cbind(metadata, data) %>% 
+    mutate(filename = x)
+  
+  return(data)
+  
+  
+} 
 
-pr_O_vals$pr_step <- pr_Parray[pr_O_vals$value]
 
-pr_M_vals <- pr_M_O %>%
-  dplyr::filter(var == "M") %>%
-  arrange(filename, rownum) %>%
-  cbind(pr_subjects$subjectid) %>%
-  rename("subjectid" = "pr_subjects$subjectid",
-         "total_session_minutes" = "value")
+pr_raw_c01_09 <- lapply(allcohorts_pr_fnames_c01_09, readXY_pr)
 
-pr_allsubjects <- merge(pr_O_vals[c("pr_step", "subjectid")], pr_M_vals[c("total_session_minutes", "subjectid")]) %>%
-  merge(pr_Barray) %>%
-  select(-c(rownum)) %>%
-  mutate(subjectid = as.character(subjectid),
-    subjectid = if_else(grepl("KAL", subjectid), subjectid, paste0("KAL", str_pad(subjectid, 3, "left", 0)))) %>%
-  # mutate(cohort = str_match(filename, "/(.*?)/")[,2] %>% gsub("^.*([0-9]+).*", "\\1", .) %>% str_pad(., 2, pad = "0")) %>%
-  left_join(., kalivas_cohort_xl[,c("cohort", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], by = c("subjectid"="internal_id")) %>%
-  # left_join(kalivas_cohort_xl[,c("cohort_number", "sex", "rfid", "dob", "internal_id", "comments", "resolution")], ., by = c("internal_id"= "subjectid")) %>%
-  rename("cohort_xl" = "cohort") %>% 
-  mutate(filename = gsub(".*MUSC_", "", filename)) %>%
-  left_join(., allcohorts_df_nodupes[, c("date", "filename")], by = "filename") %>%
-  mutate(date = unlist(date) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y"),
-         cohort = parse_number(filename) %>% as.character %>% str_pad(., 2, side = "left", pad = "0")) %>%
-         # ,
-         # experimentage = (startdate - dob) %>% as.numeric %>% round) %>%
-  distinct() %>%
-  arrange(cohort, subjectid) %>%
-  # select(-c("dob")) %>%
-  # select(cohort_number, sex, rfid, internal_id, startdate, everything())
-  select(cohort, subjectid, date, pr_step, infusions, total_session_minutes, active_lever, inactive_lever, current_ratio, filename, everything()) %>% 
-  # naniar::replace_with_na_if(is.numeric, grepl("die|dead", comments, ignore.case = T))
-  mutate_if(is.numeric, ~replace(., grepl("die|dead", comments, ignore.case = T)|grepl("remove", resolution, ignore.case=T), NA))
+pr_raw_c01_09_df <- pr_raw_c01_09 %>% 
+  rbindlist(fill = T) %>% 
+  mutate(internal_id = str_extract(internal_id, "\\d+") %>% as.numeric,
+         internal_id = paste0("KAL", str_pad(internal_id, 3, "left", "0")),
+         cohort = paste0("C", str_pad(parse_number(str_extract(filename, "Cohort \\d+")), 2, "left", "0"))) %>% 
+  mutate(filename = gsub(".*MUSC_", "", filename)) %>%  # shorten the filename
+  mutate(startdate = unlist(startdate) %>% as.character %>% gsub('([0-9]+/[0-9]+/)', '\\120', .) %>% as.POSIXct(format="%m/%d/%Y")) %>% 
+  mutate(room = ifelse(grepl("room", filename, ignore.case = T), str_match(filename, "[LOR]"), 
+                       ifelse(grepl("room", exp, ignore.case = T), str_match(exp, "[LOR]"), NA)),
+         comp = ifelse(grepl("comp", filename, ignore.case = T),
+                       sub(".*comp(uter)? (\\d+).*", "\\2", filename, ignore.case = T) %>% str_trim(),
+                       ifelse(grepl("comp", exp, ignore.case = T), parse_number(str_extract(tolower(exp), "comp(uter)?( |_)?\\d+")), NA))) %>% 
+  mutate(compbox = ifelse(!is.na(comp), paste0(comp, ".", str_pad(box, 2, "left", "0")), box)) %>% 
+  distinct()
 
-## since cohort 5 excel data is not prepared yet, this code will take care of the columns once they have been uploaded
-if(pr_allsubjects %>% subset(cohort != cohort_xl|is.na(cohort_xl)) %>% nrow() == 0){
-  pr_allsubjects <- pr_allsubjects %>% select(-c("cohort_xl"))
-  print("COLUMN COHORT_XL HAS BEEN DROPPED FROM PR DATA")
-}
+
+# deal with dupes 
+pr_raw_c01_09_df %>% get_dupes(internal_id)
+
+
+
+
+
+
 
 
 # *****************
