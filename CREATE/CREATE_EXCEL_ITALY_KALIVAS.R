@@ -156,14 +156,21 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
       str_trim() %>%
       gsub(" ", "", .) %>% 
       gsub("^general.*|^italy$", "generalinfo", .) %>%  # make names of sheets uniform across all cohorts
-      gsub("of", "openfield", .) %>% 
+      gsub("of.*", "openfield", .) %>% 
       gsub(".*12h.*", "heroin_sa_12h", .) %>% 
       gsub(".*1(h|st).*", "heroin_sa_1h", .) %>% 
       gsub(".priming.*", "priming", .) %>% 
       gsub(".*extinction.*", "extinction", .)
     
+    
+    if(any(grepl(sheet, names(data_allsheets)))){
     # data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
     data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
+    
+    # if(any(data_breeder[,3] %>% unique == "unicam_07")&sheet == "openfield"){ ## if this data_breeder is cohort 7's
+    #   data_breeder <- rbind(names(data_breeder), data_breeder) 
+    # }
+    
     
     if(length(grep("Transponder ID", as.character(data_breeder[1, ]), value = T, ignore.case = T))==2|length(grep("Transponder ID", names(data_breeder), value = T, ignore.case = T))==2){
       data_breeder <- data_breeder[, -1]
@@ -198,6 +205,16 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
         tibble::add_column(heroin_salineyoked = "heroin_salineyoked", .after = 5) # chose index location instead of name bc maybe inconsistent naming
     }
     
+    ## check with team why 
+    # if(any(data_breeder[,3] %>% unique == "unicam_07")&sheet == "openfield"){ ## if this data_breeder is cohort 7's
+    #   data_breeder <- rbind(names(data_breeder), data_breeder) 
+    # }
+    
+    if(any(grepl("HR/LR", data_breeder[2, ] %>% unlist() %>% as.character()))){
+      data_breeder <- data_breeder[, -(grep("HR/LR", data_breeder[2, ] %>% unlist() %>% as.character))]
+    }
+    
+    
     databegins_index <- grep("date", data_breeder[,7] %>% unlist() %>% as.character, ignore.case = T)
     
     names(data_breeder)[1:6] <- data_breeder[datavaluesbegins_index, 1:6] %>% unlist() %>% as.character()
@@ -212,8 +229,8 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
     
     
     df <- df_values %>%
-      rename("microchip" = "transponderid",
-             "behavioralcharacterizationunit" = "behavioralcarachterizationunit") %>%
+      rename_at(vars(matches("^transponderid$")), function(x) "microchip") %>% 
+      rename_at(vars(matches("^behavioralcarachterizationunit$")), function(x) "behavioralcharacterizationunit") %>% 
       rename_all(~ stringr::str_replace_all(., '.*internal.*', 'ratinternalid')) %>%    
       # rename_all(~ stringr::str_replace_all(., '.*saline*', 'heroin_salineyoked')) %>%       
       dplyr::filter(!is.na(microchip)) %>%  ## okay doing this bc all other data_breeder na
@@ -237,15 +254,41 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
       select(-matches("^<?NA>?$"))
     
     return(df) 
+    }
+    
+    else if(!grepl(sheet, names(data_allsheets))){
+      df <- data.frame(rfid = NA, 
+                       sex = NA, 
+                       cohort = i,
+                       internal_id = NA, 
+                       behavioralcharacterizationunit = NA, 
+                       heroin_salineyoked = NA,
+                       saroom = NA,
+                       sabox = NA, 
+                       measurement = NA, 
+                       session = NA, 
+                       value = NA, 
+                       date = NA, 
+                       session_length = NA, 
+                       reinforcer = NA, 
+                       bolus_volume = NA, 
+                       dose = NA, 
+                       reinforcement_schedule = NA, 
+                       time_out = NA, 
+                       contextual_stimulus = NA, 
+                       discrete_stimulus = NA)
+      return(df)
+    }
     
   })
   return(data_breeder_list)
+
 }
 
 
 kalivas_italy_epm_excel_processed_c01_10 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_10, "epm") 
 names(kalivas_italy_epm_excel_processed_c01_10) <- all_excel_fnames_c01_10
-kalivas_italy_epm_excel_processed_c01_10_df <- kalivas_italy_epm_excel_processed_c01_10 %>% rbindlist(idcol = "file")
+kalivas_italy_epm_excel_processed_c01_10_df <- kalivas_italy_epm_excel_processed_c01_10 %>% rbindlist(idcol = "file", use.names = T)
 
 kalivas_italy_epm_excel_processed_c01_10_df <- kalivas_italy_epm_excel_processed_c01_10_df %>% 
   rename("cohort" = "cohort_number") %>% 
@@ -262,15 +305,17 @@ kalivas_italy_epm_excel_processed_c01_10_df <- kalivas_italy_epm_excel_processed
 
 kalivas_italy_oft_excel_processed_c01_10 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_10, "openfield") # not sure why heroin yoked error
 names(kalivas_italy_oft_excel_processed_c01_10) <- all_excel_fnames_c01_10
-kalivas_italy_oft_excel_processed_c01_10_df <- kalivas_italy_oft_excel_processed_c01_10 %>% rbindlist(idcol = "file", fill = T) ## XX temporary 
+kalivas_italy_oft_excel_processed_c01_10_df <- kalivas_italy_oft_excel_processed_c01_10 %>% rbindlist(idcol = "file", fill = T)
 
 kalivas_italy_oft_excel_processed_c01_10_df <- kalivas_italy_oft_excel_processed_c01_10_df %>%
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   select(-cohort_number) %>% 
-  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
-
-kalivas_italy_oft_excel_processed_c01_10_df_wide <- kalivas_italy_oft_excel_processed_c01_10_df %>% 
-  pivot_wider(names_from = session, values_from = center_time_seconds:total_time_traveled_seconds) 
+  naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", "")) %>% 
+  subset(!is.na(session)) %>% # remove because all columns are na's
+  subset(!is.na(date))
+# 
+# kalivas_italy_oft_excel_processed_c01_10_df_wide <- kalivas_italy_oft_excel_processed_c01_10_df %>% 
+#   pivot_wider(names_from = session, values_from = date:ambulatorytime_sec) 
 
 
 ############################
@@ -697,7 +742,6 @@ kalivas_italy_extinction_excel_c01_10_df <- kalivas_italy_extinction_excel_c01_1
 kalivas_italy_extinction_excel_c01_10_df <- kalivas_italy_extinction_excel_c01_10_df %>% 
   mutate(saroom = parse_number(saroom) %>% as.character(),
          sabox = tolower(sabox) %>% gsub(" ", "", .) %>% gsub("(\\d+)(\\D+)", "\\2\\1", .)) 
-## XX come back to fix cohort 03/03/2021
 
 ############################
 ### Priming
@@ -768,7 +812,7 @@ breakpoint_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
 
 # heroin prime seeking 
 # sum of the active lever during the 5th and 6th hour of the session
-prime_seeking <- kalivas_italy_priming_excel_c01_10_df %>%
+prime_seeking_c01_10 <- kalivas_italy_priming_excel_c01_10_df %>%
   mutate(rfid = gsub("([.]|E14)", "", rfid),
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
@@ -786,11 +830,55 @@ prime_seeking <- kalivas_italy_priming_excel_c01_10_df %>%
   select(cohort, rfid, internal_id, prime_active)
 
 
+# Day 6 extinction 
+# active lever presses
+
+extinction_6_c01_10 <- kalivas_italy_extinction_excel_c01_10_df %>% 
+  mutate(rfid = gsub("([.]|E14)", "", rfid),
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>%
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
+  subset(measurement == "activelever"&session == "6") %>% 
+  mutate(session = paste0("session", session),
+         value = as.numeric(value)) %>% 
+  rename("active_presses" = "value") %>% 
+  distinct(cohort, rfid, internal_id, session, active_presses) %>% 
+  spread(session, active_presses) 
 
 
+# cued seeking
+# active lever presses on cued reinstatement
+cuedseeking_c01_10 <- kalivas_italy_extinction_excel_c01_10_df %>% 
+  mutate(rfid = gsub("([.]|E14)", "", rfid),
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>%
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
+  subset(measurement == "activelever"&session=="relapse") %>% 
+  mutate(session = paste0("session", session),
+         value = as.numeric(value)) %>% 
+  rename("active_presses" = "value") %>% 
+  distinct(cohort, rfid, internal_id, session, active_presses) %>% 
+  spread(session, active_presses) %>% 
+  rename("session_reinstatement" = "sessionrelapse")
 
 
+## open field behaviors
+# distance travelled, time travelled and rears
 
+oft_c01_10 <- kalivas_italy_oft_excel_processed_c01_10_df %>% 
+  subset(session == "before_SA") %>% 
+  rename("internal_id" = "ratinternalid") %>% 
+  mutate(timetraveled = coalesce(timetraveled, ambulatorytime_sec)) %>% 
+  mutate_at(vars(one_of("distancetraveled_cm", "timetraveled", "rears")), as.numeric) %>% 
+  select(cohort, rfid, internal_id, distancetraveled_cm, timetraveled, rears)
+
+## Plus maze
+# Time point 1, total time open arm
+
+openarm_epm_c01_10 <- kalivas_italy_epm_excel_processed_c01_10_df %>% 
+  subset(session == "before_SA") %>% 
+  rename("internal_id" = "ratinternalid") %>% 
+  select(cohort, rfid, internal_id, totaltimeopenarm_sec)
 
 
 
