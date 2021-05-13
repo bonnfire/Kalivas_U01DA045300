@@ -558,10 +558,6 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       
       if(grepl("priming", sheet)){
         df_values <- df_values %>% 
-          rowwise() %>% 
-          mutate(session = replace(session, session == "1", "priming"),
-                 session = replace(session, session %in% as.character(c(2:7)), as.character(as.numeric(session) - 1))) %>% 
-          ungroup() %>% 
           select(-var) %>% 
           subset(!(is.na(measurement)|measurement == "na"))
       }
@@ -710,9 +706,7 @@ kalivas_italy_priming_excel_c01_10 <- extract_process_excel_manysessions_lapply_
 names(kalivas_italy_priming_excel_c01_10) <- all_excel_fnames_c01_10
 kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10 %>% 
   rbindlist(fill = T, idcol = "file")
-
-
-
+## see gwas code below to correct sessions in cohorts
 
 
 
@@ -721,6 +715,8 @@ kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10 %>%
 #### CREATE GWAS VARIABLES
 ############################
 
+# total heroin comsumption
+# sum of all infusions from self admin sessions 1-12
 total_consumption_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>% 
   mutate(rfid = gsub("([.]|E14)", "", rfid),
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
@@ -731,9 +727,11 @@ total_consumption_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
   subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows  
-  select(cohort, rfid, total_consumption)
+  select(cohort, rfid, internal_id, total_consumption)
 
 
+# escalation 
+# (mean of sessions 10-12)*20 - (mean of sessions 1-3)*20
 escalation_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>% 
   mutate(rfid = gsub("([.]|E14)", "", rfid),
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
@@ -745,13 +743,15 @@ escalation_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
   subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows  
-  distinct(cohort, rfid, session_cat, session_mean) %>% 
+  distinct(cohort, rfid, internal_id, session_cat, session_mean) %>% 
   mutate_if(is.numeric, ~.*20) %>% 
   spread(session_cat, session_mean) %>% 
   mutate(esc = end - start) %>% 
   select(-end, -start)
   
 
+# breakpoint
+# breakpoint value in the PR session after first set of self admin sessions
 ## missing cohorts 2 
 breakpoint_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>% 
   mutate(rfid = gsub("([.]|E14)", "", rfid),
@@ -761,32 +761,30 @@ breakpoint_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
   rename("breakpoint" = "value") %>% 
-  select(cohort, rfid, breakpoint)
+  select(cohort, rfid, internal_id, breakpoint)
 
 ## Day 1 extinction 
 # exclude from this analysis run 
 
-# XX figure out why 
-kalivas_italy_priming_excel_c01_10_df %>% 
+# heroin prime seeking 
+# sum of the active lever during the 5th and 6th hour of the session
+prime_seeking <- kalivas_italy_priming_excel_c01_10_df %>%
   mutate(rfid = gsub("([.]|E14)", "", rfid),
-         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
-         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% select(session, cohort) %>% table()
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
+  rowwise() %>%
+  mutate(session = replace(session, session == "1"&cohort %in% c("C03", "C04", "C06", "C07", "C08", "C09", "C10"), "session_total"),
+         session = replace(session, session %in% as.character(c(2:7))&cohort%in% c("C03", "C04", "C06", "C07", "C08", "C09", "C10"), as.character(as.numeric(session) - 1))) %>%
+  ungroup() %>%
+  subset(measurement == "activelever"&session %in% c("5", "6")) %>%
+  mutate(session = paste0("session", session),
+         value = as.numeric(value)) %>% 
+  select(cohort, rfid, internal_id, session, value) %>% 
+  spread(session, value) %>% 
+  mutate(prime_active = rowSums((.[,c("session5", "session6")]), na.rm = T)) %>% 
+  select(cohort, rfid, internal_id, prime_active)
 
-
-# kalivas_italy_priming_excel_c01_10_df %>% 
-#   mutate(rfid = gsub("([.]|E14)", "", rfid),
-#          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
-#   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
-#          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% subset(cohort == "C03"&measurement=="activelever") %>% select(rfid, session, value)
-# 
-# kalivas_italy_priming_excel_c01_10_df %>% 
-#   mutate(rfid = gsub("([.]|E14)", "", rfid),
-#          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
-#   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
-#          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
-#   subset(measurement == "activelever"&session %in% c("5", "6")) 
-  
 
 
 
