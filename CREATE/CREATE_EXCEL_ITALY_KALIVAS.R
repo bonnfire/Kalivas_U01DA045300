@@ -1,9 +1,9 @@
 ## CREATE EXCEL ITALY AND U.S. 
 
 ## EXTRACT KALIVAS ITALY EXCEL 
-
-setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data")
-italy_filenames_xl <- list.files(recursive = T)
+# 
+# setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data")
+# italy_filenames_xl <- list.files(recursive = T)
 
 
 # extract_italy_tissue_notes <- function(files, sheet){
@@ -54,7 +54,7 @@ u01.importxlsx <- function(xlname){
   names(df) <- path_sheetnames
   return(df)
 } 
-all_excel_fnames_c01_08 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data/", full.names = T, recursive = T) 
+all_excel_fnames_c01_10 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data/", full.names = T, recursive = T) %>% grep("batch[- ]?(0[1-9]|10)", ., value = T, ignore.case = T)
 
 
 # extract shipping information for metadata 
@@ -97,15 +97,38 @@ kalivas_italy_extract_shipping_metadata <- function(files, sheet){
   return(data_breeder_list)
 }
 
-kalivas_italy_shipping_metadata_c01_08 <- lapply(all_excel_fnames_c01_08, kalivas_italy_extract_shipping_metadata, "generalinfo") %>% sapply(.,'[')
-names(kalivas_italy_shipping_metadata_c01_08) <- all_excel_fnames_c01_08
-kalivas_italy_shipping_metadata_c01_08_df <- kalivas_italy_shipping_metadata_c01_08 %>% 
+kalivas_italy_shipping_metadata_c01_10 <- lapply(all_excel_fnames_c01_10, kalivas_italy_extract_shipping_metadata, "generalinfo") %>% sapply(.,'[')
+names(kalivas_italy_shipping_metadata_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_shipping_metadata_c01_10_df <- kalivas_italy_shipping_metadata_c01_10 %>% 
   rbindlist(fill = T, idcol = "file")
 
-kalivas_italy_shipping_metadata_c01_08_df_ids <- kalivas_italy_shipping_metadata_c01_08_df %>% 
-  mutate(cohort = gsub(".*batch-(\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+# extracting relevant covariates
+kalivas_italy_shipping_metadata_c01_10_df_ids <- kalivas_italy_shipping_metadata_c01_10_df %>% 
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
-  select(cohort, transponder_id, animal_id)
+  mutate(transponder_id = gsub("([.]|E14)", "", transponder_id),
+         transponder_id = ifelse(nchar(transponder_id) == 14, paste0(transponder_id, "0"), transponder_id)) %>%
+  subset(!is.na(transponder_id)) %>% 
+  mutate(d_o_b = as.numeric(d_o_b) %>% as.character() %>% openxlsx::convertToDate() %>% as.POSIXct(format="%Y-%m-%d")) %>% 
+  select(cohort, transponder_id, animal_id, sex, d_o_b)
+
+
+# join to the metadata here to verify rfid's and fill in dob's 
+kalivas_italy_metadata_c01_10_df <- kalivas_italy_shipping_metadata_c01_10_df_ids %>% 
+  full_join(WFU_KalivasItaly %>% mutate(cohort = ifelse(!grepl("^C", cohort), paste0("C", cohort), cohort)) %>% select(cohort, rfid, sex, dob, comment), by = c("cohort", "transponder_id" = "rfid")) %>% 
+  mutate(sex.x = coalesce(sex.x, sex.y),
+         d_o_b = coalesce(d_o_b, dob)) %>%
+  rename("sex" = "sex.y",
+         "rfid" = "transponder_id") %>% 
+  mutate(dob = as.POSIXct(dob, format="%Y-%m-%d")) %>%
+  select(cohort, rfid, animal_id, sex, dob, comment)
+
+# check for incorrectly labelled sexes
+kalivas_italy_metadata_c01_10_df %>% subset(sex.x != sex.y)
+kalivas_italy_metadata_c01_10_df %>% subset(d_o_b != dob)
+
+
+
 
 
 
@@ -125,7 +148,7 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
     
     data_allsheets = u01.importxlsx(i)
     
-    # data_allsheets = u01.importxlsx(all_excel_fnames_c01_06[1])
+    # data_allsheets = u01.importxlsx(all_excel_fnames_c01_10[1])
     
     
     names(data_allsheets) = names(data_allsheets) %>% 
@@ -220,11 +243,11 @@ extract_process_excel_repeatedmeasures2_lapply_italy <-  function(files, sheet){
 }
 
 
-kalivas_italy_epm_excel_processed_c01_06 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "epm") 
-names(kalivas_italy_epm_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_epm_excel_processed_c01_06_df <- kalivas_italy_epm_excel_processed_c01_06 %>% rbindlist(idcol = "file")
+kalivas_italy_epm_excel_processed_c01_10 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_10, "epm") 
+names(kalivas_italy_epm_excel_processed_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_epm_excel_processed_c01_10_df <- kalivas_italy_epm_excel_processed_c01_10 %>% rbindlist(idcol = "file")
 
-kalivas_italy_epm_excel_processed_c01_06_df <- kalivas_italy_epm_excel_processed_c01_06_df %>% 
+kalivas_italy_epm_excel_processed_c01_10_df <- kalivas_italy_epm_excel_processed_c01_10_df %>% 
   rename("cohort" = "cohort_number") %>% 
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
@@ -237,16 +260,16 @@ kalivas_italy_epm_excel_processed_c01_06_df <- kalivas_italy_epm_excel_processed
 ############################
 
 
-kalivas_italy_oft_excel_processed_c01_06 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_06, "openfield") # not sure why heroin yoked error
-names(kalivas_italy_oft_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06 %>% rbindlist(idcol = "file", fill = T) ## XX temporary 
+kalivas_italy_oft_excel_processed_c01_10 <- extract_process_excel_repeatedmeasures2_lapply_italy(all_excel_fnames_c01_10, "openfield") # not sure why heroin yoked error
+names(kalivas_italy_oft_excel_processed_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_oft_excel_processed_c01_10_df <- kalivas_italy_oft_excel_processed_c01_10 %>% rbindlist(idcol = "file", fill = T) ## XX temporary 
 
-kalivas_italy_oft_excel_processed_c01_06_df <- kalivas_italy_oft_excel_processed_c01_06_df %>%
+kalivas_italy_oft_excel_processed_c01_10_df <- kalivas_italy_oft_excel_processed_c01_10_df %>%
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   select(-cohort_number) %>% 
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
 
-kalivas_italy_oft_excel_processed_c01_06_df_wide <- kalivas_italy_oft_excel_processed_c01_06_df %>% 
+kalivas_italy_oft_excel_processed_c01_10_df_wide <- kalivas_italy_oft_excel_processed_c01_10_df %>% 
   pivot_wider(names_from = session, values_from = center_time_seconds:total_time_traveled_seconds) 
 
 
@@ -263,7 +286,7 @@ tailflick_italy <- function(files, sheet){ # for use on before self admin and af
     }
     
     data_allsheets = u01.importxlsx(i)
-    # data_allsheets = u01.importxlsx(all_excel_fnames_c01_06[1])
+    # data_allsheets = u01.importxlsx(all_excel_fnames_c01_10[1])
     names(data_allsheets) = names(data_allsheets) %>% 
       tolower() %>%
       str_trim() %>%
@@ -375,9 +398,9 @@ tailflick_italy <- function(files, sheet){ # for use on before self admin and af
   
 }
 
-kalivas_italy_tf_excel_processed_c01_06 <- tailflick_italy(all_excel_fnames_c01_06, "tailflick") 
-names(kalivas_italy_tf_excel_processed_c01_06) <- all_excel_fnames_c01_06
-kalivas_italy_tf_excel_processed_c01_06_df <- kalivas_italy_tf_excel_processed_c01_06 %>% rbindlist(fill = T, id = "file")
+kalivas_italy_tf_excel_processed_c01_10 <- tailflick_italy(all_excel_fnames_c01_10, "tailflick") 
+names(kalivas_italy_tf_excel_processed_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_tf_excel_processed_c01_10_df <- kalivas_italy_tf_excel_processed_c01_10 %>% rbindlist(fill = T, id = "file")
 
 
 
@@ -394,7 +417,7 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
       return(df)
     }
     
-    data_allsheets = u01.importxlsx(i) # data_allsheets = u01.importxlsx(all_excel_fnames_c01_06[2]) ## XX remove, just here for troubleshooting 
+    data_allsheets = u01.importxlsx(i) # data_allsheets = u01.importxlsx(all_excel_fnames_c01_10[2]) ## XX remove, just here for troubleshooting 
     
     names(data_allsheets) = names(data_allsheets) %>% 
       tolower() %>%
@@ -643,39 +666,39 @@ extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
 
 
 
-kalivas_italy_lga_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "heroin_sa_12h") 
-names(kalivas_italy_lga_excel_c01_08) <- all_excel_fnames_c01_08
-kalivas_italy_lga_excel_c01_08_df <- kalivas_italy_lga_excel_c01_08 %>% 
+kalivas_italy_lga_excel_c01_10 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_10, "heroin_sa_12h") 
+names(kalivas_italy_lga_excel_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_lga_excel_c01_10_df <- kalivas_italy_lga_excel_c01_10 %>% 
   rbindlist(fill = T, idcol = "file")
 
 
 ## clean df 
-kalivas_italy_lga_excel_processed_c01_08_df <- kalivas_italy_lga_excel_c01_08_df %>% 
+kalivas_italy_lga_excel_processed_c01_10_df <- kalivas_italy_lga_excel_c01_10_df %>% 
   mutate(cohort = gsub(".*batch-(\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
   left_join()
 
-kalivas_italy_shipping_metadata_c01_08_df_ids
+kalivas_italy_shipping_metadata_c01_10_df_ids
 
 
 ############################
 ### SHA 
 ############################
-kalivas_italy_sha_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "heroin_sa_1h") 
-names(kalivas_italy_sha_excel_c01_08) <- all_excel_fnames_c01_08
-kalivas_italy_sha_excel_c01_08_df <- kalivas_italy_sha_excel_c01_08 %>% 
+kalivas_italy_sha_excel_c01_10 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_10, "heroin_sa_1h") 
+names(kalivas_italy_sha_excel_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_sha_excel_c01_10_df <- kalivas_italy_sha_excel_c01_10 %>% 
   rbindlist(fill = T, idcol = "file")
 
 
 ############################
 ### Extinction
 ############################
-kalivas_italy_extinction_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "extinction") 
-names(kalivas_italy_extinction_excel_c01_08) <- all_excel_fnames_c01_08
-kalivas_italy_extinction_excel_c01_08_df <- kalivas_italy_extinction_excel_c01_08 %>% 
+kalivas_italy_extinction_excel_c01_10 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_10, "extinction") 
+names(kalivas_italy_extinction_excel_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_extinction_excel_c01_10_df <- kalivas_italy_extinction_excel_c01_10 %>% 
   rbindlist(fill = T, idcol = "file")
 
-kalivas_italy_extinction_excel_c01_08_df <- kalivas_italy_extinction_excel_c01_08_df %>% 
+kalivas_italy_extinction_excel_c01_10_df <- kalivas_italy_extinction_excel_c01_10_df %>% 
   mutate(saroom = parse_number(saroom) %>% as.character(),
          sabox = tolower(sabox) %>% gsub(" ", "", .) %>% gsub("(\\d+)(\\D+)", "\\2\\1", .)) 
 ## XX come back to fix cohort 03/03/2021
@@ -683,10 +706,57 @@ kalivas_italy_extinction_excel_c01_08_df <- kalivas_italy_extinction_excel_c01_0
 ############################
 ### Priming
 ############################
-kalivas_italy_priming_excel_c01_08 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_08, "priming") 
-names(kalivas_italy_priming_excel_c01_08) <- all_excel_fnames_c01_08
-kalivas_italy_priming_excel_c01_08_df <- kalivas_italy_priming_excel_c01_08 %>% 
+kalivas_italy_priming_excel_c01_10 <- extract_process_excel_manysessions_lapply_italy(all_excel_fnames_c01_10, "priming") 
+names(kalivas_italy_priming_excel_c01_10) <- all_excel_fnames_c01_10
+kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10 %>% 
   rbindlist(fill = T, idcol = "file")
+
+
+
+
+
+
+
+############################
+#### CREATE GWAS VARIABLES
+############################
+
+total_consumption_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>% 
+  mutate(rfid = gsub("([.]|E14)", "", rfid),
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+  subset(measurement == "infusions"& as.numeric(session) <= 12) %>% 
+  group_by(rfid) %>% 
+  mutate(total_consumption=sum(as.numeric(value), na.rm = T)*20) %>% 
+  ungroup() %>%
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
+  subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows  
+  select(cohort, rfid, total_consumption)
+
+
+escalation <- kalivas_italy_lga_excel_c01_10_df %>% 
+  mutate(rfid = gsub("([.]|E14)", "", rfid),
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+  subset(measurement == "infusions"& session %in% c("1", "2", "3", "10", "11", "12")) %>%
+  mutate(session_cat = ifelse(session %in% c("1", "2", "3"), "start", "end")) %>%  # label the sessions by start of the experiment or end of the experiment
+  group_by(rfid, session_cat) %>% 
+  mutate(session_mean=mean(as.numeric(value), na.rm = T)) %>% 
+  ungroup() %>%
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
+  subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows  
+  distinct(cohort, rfid, session_cat, session_mean) %>% 
+  mutate_if(is.numeric, ~.*20) %>% 
+  spread(session_cat, session_mean) %>% 
+  mutate(esc = end - start) %>% 
+  select(-end, -start)
+  
+  
+
+  
+
+
+
 
 
 
