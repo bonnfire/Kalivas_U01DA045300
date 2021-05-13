@@ -734,7 +734,7 @@ total_consumption_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
   select(cohort, rfid, total_consumption)
 
 
-escalation <- kalivas_italy_lga_excel_c01_10_df %>% 
+escalation_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>% 
   mutate(rfid = gsub("([.]|E14)", "", rfid),
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
   subset(measurement == "infusions"& session %in% c("1", "2", "3", "10", "11", "12")) %>%
@@ -750,6 +750,52 @@ escalation <- kalivas_italy_lga_excel_c01_10_df %>%
   spread(session_cat, session_mean) %>% 
   mutate(esc = end - start) %>% 
   select(-end, -start)
+  
+
+## missing cohorts 2 
+breakpoint_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>% 
+  mutate(rfid = gsub("([.]|E14)", "", rfid),
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+  mutate(measurement = ifelse(measurement == "breakpoint", "bp", measurement)) %>% 
+  subset(measurement == "bp"& session == "pr") %>% 
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
+  rename("breakpoint" = "value") %>% 
+  select(cohort, rfid, breakpoint)
+
+## Day 1 extinction 
+# exclude from this analysis run 
+
+# XX figure out why 
+kalivas_italy_priming_excel_c01_10_df %>% 
+  mutate(rfid = gsub("([.]|E14)", "", rfid),
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% select(session, cohort) %>% table()
+
+
+# kalivas_italy_priming_excel_c01_10_df %>% 
+#   mutate(rfid = gsub("([.]|E14)", "", rfid),
+#          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+#   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+#          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% subset(cohort == "C03"&measurement=="activelever") %>% select(rfid, session, value)
+# 
+# kalivas_italy_priming_excel_c01_10_df %>% 
+#   mutate(rfid = gsub("([.]|E14)", "", rfid),
+#          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+#   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+#          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
+#   subset(measurement == "activelever"&session %in% c("5", "6")) 
+  
+
+
+
+
+
+
+
+
+
   
   
 
