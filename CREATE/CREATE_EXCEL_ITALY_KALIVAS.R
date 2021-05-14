@@ -765,13 +765,14 @@ total_consumption_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
   mutate(rfid = gsub("([.]|E14)", "", rfid),
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
   subset(measurement == "infusions"& as.numeric(session) <= 12) %>% 
-  group_by(rfid) %>% 
+  group_by(rfid, internal_id) %>% 
   mutate(total_consumption=sum(as.numeric(value), na.rm = T)*20) %>% 
+  mutate(date_consumption = max(ymd(date), na.rm = T)) %>% # find the date of the last session
   ungroup() %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
   subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows  
-  select(cohort, rfid, internal_id, total_consumption)
+  distinct(cohort, rfid, internal_id, total_consumption, date_consumption)
 
 
 # escalation 
@@ -781,18 +782,22 @@ escalation_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
   subset(measurement == "infusions"& session %in% c("1", "2", "3", "10", "11", "12")) %>%
   mutate(session_cat = ifelse(session %in% c("1", "2", "3"), "start", "end")) %>%  # label the sessions by start of the experiment or end of the experiment
-  group_by(rfid, session_cat) %>% 
+  group_by(rfid, internal_id, session_cat) %>% 
   mutate(session_mean=mean(as.numeric(value), na.rm = T)) %>% 
   ungroup() %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
-  subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows  
-  distinct(cohort, rfid, internal_id, session_cat, session_mean) %>% 
+  subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows
+  group_by(rfid, internal_id) %>%
+  mutate(date_esc = max(ymd(date), na.rm = T)) %>% # find the date of the last session
+  ungroup() %>% 
+  distinct(cohort, rfid, internal_id, session_cat, session_mean, date_esc) %>% 
   mutate_if(is.numeric, ~.*20) %>% 
   spread(session_cat, session_mean) %>% 
   mutate(esc = end - start) %>% 
   select(-end, -start)
   
+
 
 # breakpoint
 # breakpoint value in the PR session after first set of self admin sessions
@@ -804,8 +809,9 @@ breakpoint_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
   subset(measurement == "bp"& session == "pr") %>% 
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
-  rename("breakpoint" = "value") %>% 
-  select(cohort, rfid, internal_id, breakpoint)
+  rename("breakpoint" = "value",
+         "date_prbreakpoint" = "date") %>% 
+  select(cohort, rfid, internal_id, breakpoint, date_prbreakpoint) 
 
 ## Day 1 extinction 
 # exclude from this analysis run 
@@ -827,7 +833,7 @@ prime_seeking_c01_10 <- kalivas_italy_priming_excel_c01_10_df %>%
   select(cohort, rfid, internal_id, session, value) %>% 
   spread(session, value) %>% 
   mutate(prime_active = rowSums((.[,c("session5", "session6")]), na.rm = T)) %>% 
-  select(cohort, rfid, internal_id, prime_active)
+  select(cohort, rfid, internal_id, prime_active) ## date column has a lot of NA's
 
 
 # Day 6 extinction 
@@ -842,8 +848,9 @@ extinction_6_c01_10 <- kalivas_italy_extinction_excel_c01_10_df %>%
   mutate(session = paste0("session", session),
          value = as.numeric(value)) %>% 
   rename("active_presses" = "value") %>% 
-  distinct(cohort, rfid, internal_id, session, active_presses) %>% 
-  spread(session, active_presses) 
+  distinct(cohort, rfid, internal_id, session, active_presses, date) %>% 
+  spread(session, active_presses) %>% 
+  rename("date_extinction" = "date")
 
 
 # cued seeking
@@ -857,9 +864,10 @@ cuedseeking_c01_10 <- kalivas_italy_extinction_excel_c01_10_df %>%
   mutate(session = paste0("session", session),
          value = as.numeric(value)) %>% 
   rename("active_presses" = "value") %>% 
-  distinct(cohort, rfid, internal_id, session, active_presses) %>% 
+  distinct(cohort, rfid, internal_id, session, active_presses, date) %>% 
   spread(session, active_presses) %>% 
-  rename("session_reinstatement" = "sessionrelapse")
+  rename("session_reinstatement" = "sessionrelapse", 
+         "date_cued" = "date")
 
 
 ## open field behaviors
@@ -870,7 +878,8 @@ oft_c01_10 <- kalivas_italy_oft_excel_processed_c01_10_df %>%
   rename("internal_id" = "ratinternalid") %>% 
   mutate(timetraveled = coalesce(timetraveled, ambulatorytime_sec)) %>% 
   mutate_at(vars(one_of("distancetraveled_cm", "timetraveled", "rears")), as.numeric) %>% 
-  select(cohort, rfid, internal_id, distancetraveled_cm, timetraveled, rears)
+  rename("date_oft" = "date") %>% 
+  select(cohort, rfid, internal_id, distancetraveled_cm, timetraveled, rears, date_oft)
 
 ## Plus maze
 # Time point 1, total time open arm
@@ -878,7 +887,8 @@ oft_c01_10 <- kalivas_italy_oft_excel_processed_c01_10_df %>%
 openarm_epm_c01_10 <- kalivas_italy_epm_excel_processed_c01_10_df %>% 
   subset(session == "before_SA") %>% 
   rename("internal_id" = "ratinternalid") %>% 
-  select(cohort, rfid, internal_id, totaltimeopenarm_sec)
+  rename("date_openarm" = "date") %>% 
+  select(cohort, rfid, internal_id, totaltimeopenarm_sec, date_openarm)
 
 
 
