@@ -1,6 +1,5 @@
 ## CREATE RAW ITALY KALIVAS
-setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file")
-raw_filenames_italy_kalivas_c02_06 <- list.files(recursive = T, full.names = T) %>% grep("cohort_0[3-6]", ., value = T)
+raw_filenames_italy_kalivas_c03_09 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file", recursive = T, full.names = T) %>% grep("cohort_0[3-9]", ., value = T)
 # raw_filenames_italy_kalivas[which(raw_filenames_italy_kalivas == "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR( F 239-240)")] <- "./unicam_cohort_06/Long-access self-administration/U01-C6 ROOM 47 LGA14 M(209-210_237-238) F( 235-236) e PR F(239-240)"
 
 ## read in excel assigning subjects based on boxes 
@@ -293,6 +292,119 @@ primedrein_inactive <- lapply(grep("primed rein", raw_filenames_italy_kalivas, v
   mutate(lever_presses = gsub(",", ".", lever_presses))
 
 
+primed_presses_byhour_5_6 <- lapply(grep("primed rein", raw_filenames_italy_kalivas_c03_09, value = T, ignore.case = T), function(x){
+  setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file/")
+  
+  box = fread(paste0("awk '/Box:/{print $2}' '", x, "'"), header = F, fill = T)
+  
+  inactive_lever =  fread(paste0("awk '/^L:/{flag=1;next}/^R:/{flag=0}flag' ", "'",  x, "'"), header = F, fill = T)
+  active_lever =  fread(paste0("awk '/^R:/{flag=1;next}/^W:/{flag=0}flag' ", "'",  x, "' | awk '/0:/{print $3 + $4}'"), header = F, fill = T)
+  
+  # inactive 
+  # find each subject and split 
+  inactive_indices <- grep("^0:", inactive_lever$V1) 
+  split_data_inactive <- split(inactive_lever, cumsum(1:nrow(inactive_lever) %in% inactive_indices))
+  
+  inactive_split_data_process <- lapply(split_data_inactive, function(x){
+    x <- x %>% separate(V1, c("row", "V1"), sep = ":") %>% 
+      select(-matches("V6")) %>% mutate_all(~gsub(" ", "", .)) %>% 
+      mutate_all(as.numeric) %>% 
+      select(-row)
+    vector <- data.frame(rewards = as.vector(t(data.matrix(x)))) # transpose to get by row
+    vector <- vector[-1,] %>% # remove total 
+      as.data.frame() %>% rename("rewards" = ".") %>% 
+      mutate(bin = 1:n()) # add bin number 
+    
+    vector_sum <- vector %>% 
+      mutate(group = ifelse(between(bin, 49, 61), "inactive_hour5", 
+                            ifelse(between(bin, 62, 73), "inactive_hour6", NA))) %>% 
+      subset(!is.na(group)) %>% 
+      group_by(group) %>% 
+      mutate(sum = sum(rewards, na.rm = T))
+    
+    vector_sum_wide <- vector_sum %>% 
+      distinct(group, sum) %>% 
+      spread(group, sum)
+    
+    return(vector_sum_wide)
+  }) %>% 
+    rbindlist(fill = T)
+  
+  
+  # active 
+  # find each subject and split 
+  active_indices <- grep("^0:", active_lever$V1) 
+  split_data_active <- split(active_lever, cumsum(1:nrow(active_lever) %in% active_indices))
+  
+  active_split_data_process <- lapply(split_data_active, function(x){
+    x <- x %>% separate(V1, c("row", "V1"), sep = ":") %>% 
+      select(-matches("V6")) %>% mutate_all(~gsub(" ", "", .)) %>% 
+      mutate_all(as.numeric) %>% 
+      select(-row)
+    vector <- data.frame(rewards = as.vector(t(data.matrix(x)))) # transpose to get by row
+    vector <- vector[-1,] %>% # remove total 
+      as.data.frame() %>% rename("rewards" = ".") %>% 
+      mutate(bin = 1:n()) # add bin number 
+    
+    vector_sum <- vector %>% 
+      mutate(group = ifelse(between(bin, 49, 61), "active_hour5", 
+                            ifelse(between(bin, 62, 73), "active_hour6", NA))) %>% 
+      subset(!is.na(group)) %>% 
+      group_by(group) %>% 
+      mutate(sum = sum(rewards, na.rm = T))
+    
+    vector_sum_wide <- vector_sum %>% 
+      distinct(group, sum) %>% 
+      spread(group, sum)
+    
+    return(vector_sum_wide)
+  }) %>% 
+    rbindlist(fill = T)
+
+  data <- cbind(box, inactive_split_data_process) %>% cbind(active_split_data_process) %>% 
+    mutate(filename = x) %>% 
+    rename("box" = "V1")
+  
+  return(data)
+  
+})
+
+primed_presses_byhour_5_6_df <- primed_presses_byhour_5_6 %>% rbindlist(fill = T)
+
+# file dictionary
+primed_filename_c03_09_df <- primed_presses_byhour_5_6_df %>% 
+  distinct(filename) %>% 
+  mutate(filename2 = gsub(" ", "", filename)) %>%
+  rowwise() %>% 
+  mutate(num = stringr::str_extract_all(filename2, "([MF]|YOKED)\\([^()]+\\)") %>% gsub("[()]", "", .)) %>% 
+  ungroup %>% 
+  mutate(num2 = strsplit(as.character(num), "\", \"|_")) %>% 
+  unnest(num2) %>% 
+  mutate(num2 = gsub("c\"|\"", "", num2)) %>% 
+  mutate(sex = str_match(num2, "[MF]|YOKED")) %>% 
+  mutate(num2 = ifelse(num2 == "character0", "0-0", num2)) %>% 
+  mutate(num3 = gsub("(\\D+)?([0-9]+)-?.*", "\\2", num2) %>% parse_number() %>% as.numeric,
+         num4 = gsub(".*-", "", num2) %>% parse_number() %>% as.numeric) %>% 
+  mutate(num_seq = map2(num3, num4, `:`)) %>% 
+  unnest(num_seq, keep_empty = T) %>% 
+  distinct(filename, sex, num_seq)
+
+# join file dictionary to box allocation
+kalivas_italy_priming_excel_c01_10_df %>% distinct(internal_id, sabox, sex) %>% 
+  mutate(num_seq = parse_number(internal_id)) %>% 
+  full_join(primed_filename_c03_09_df, by = c("num_seq", "sex")) %>%
+  naniar::vis_miss() 
+
+##XX potential internal_id 
+priming_id <- kalivas_italy_priming_excel_c01_10_df %>% distinct(internal_id, sabox, sex) %>% 
+  mutate(num_seq = parse_number(internal_id)) %>% 
+  full_join(primed_filename_c03_09_df, by = c("num_seq", "sex"))%>%
+  subset(!is.na(internal_id)) 
+
+anti_join(primed_filename_c03_09_df, priming_id, by = "filename") ## XX 
+anti_join(priming_id, primed_filename_c03_09_df, by = "filename")
+
+
 ##################################################
 ##################################################
 ##  CUED REINSTATEMENT
@@ -320,21 +432,51 @@ read.relapse <- function(x){
   # return(cued_rein)
 }
 
-relapse_raw_c02_06 <- lapply(grep("cued", raw_filenames_italy_kalivas_c02_06, value = T, ignore.case = T), read.relapse) 
-relapse_raw_c02_06_df <- relapse_raw_c02_06 %>%
+relapse_raw_c03_09 <- lapply(grep("cued", raw_filenames_italy_kalivas_c03_09, value = T, ignore.case = T), read.relapse) 
+relapse_raw_c03_09_df <- relapse_raw_c03_09 %>%
   rbindlist(fill = T) 
-names(relapse_raw_c02_06_df) <- c("box", "A", "inactive_presses", "active_presses", "infusions", "filename")
-relapse_raw_c02_06_df <- relapse_raw_c02_06_df %>% 
+names(relapse_raw_c03_09_df) <- c("box", "A", "inactive_presses", "active_presses", "infusions", "filename")
+relapse_raw_c03_09_df <- relapse_raw_c03_09_df %>% 
   mutate_all(as.character) %>%
   mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .))
 
-relapse_raw_c02_06_df %>% mutate(box = as.numeric(box)) %>% subset(box>10) %>% dim
+relapse_raw_c03_09_df %>% mutate(box = as.numeric(box)) %>% subset(box>10) %>% dim
 
-relapse_raw_c02_06_df <- relapse_raw_c02_06_df %>% 
+relapse_raw_c03_09_df <- relapse_raw_c03_09_df %>% 
   mutate(sex = ifelse(grepl("[MF][(]", filename, ignore.case = T), gsub(".*([MF])[(].*", "\\1", filename), NA),
          cohort = str_pad(parse_number(gsub(".*unicam_cohort_(\\d+)[/].*", "\\1", filename)), 2, "left", "0") %>% paste0("C", .),
-         exp = "Cued reinstatement",
+         exp = "cued_rein",
          heroin_or_saline = ifelse(grepl("saline", filename, ignore.case = T), "saline", "heroin"))
+
+# filename dictionary
+relapse_c03_09_filename <- relapse_raw_c03_09_df %>% 
+  distinct(filename) %>% 
+  mutate(filename2 = gsub(" ", "", filename)) %>%
+  rowwise() %>% 
+  mutate(num = stringr::str_extract_all(filename2, "([MF]|YOKED)\\([^()]+\\)") %>% gsub("[()]", "", .)) %>% 
+  ungroup %>% 
+  mutate(num2 = strsplit(as.character(num), "\", \"|_")) %>% 
+  unnest(num2) %>% 
+  mutate(num2 = gsub("c\"|\"", "", num2)) %>% 
+  mutate(sex = str_match(num2, "[MF]|YOKED")) %>% 
+  mutate(num2 = ifelse(num2 == "character0", "0-0", num2)) %>% 
+  mutate(num3 = gsub("(\\D+)?([0-9]+)-?.*", "\\2", num2) %>% parse_number() %>% as.numeric,
+         num4 = gsub(".*-", "", num2) %>% parse_number() %>% as.numeric) %>% 
+  mutate(num_seq = map2(num3, num4, `:`)) %>% 
+  unnest(num_seq, keep_empty = T) %>% 
+  distinct(filename, sex, num_seq)
+  
+
+# join to data and by boxes
+relapse_raw_c03_09_df_id <- relapse_raw_c03_09_df %>% 
+  left_join(relapse_c03_09_filename, by = c("filename", "sex")) %>% 
+  left_join(italy_rat_boxes_df %>% 
+              rename("box_fullname" = "box"), by = c("cohort", "sex", "num_seq" = "labanimalid_num")) %>% 
+  subset(!is.na(labanimalid))
+
+# missing 
+relapse_raw_c03_09_df[!relapse_raw_c03_09_df$filename %in% unique(relapse_raw_c03_09_df_id$filename),]$filename %>% unique
+
 
 
 

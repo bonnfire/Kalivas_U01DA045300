@@ -6,6 +6,8 @@ write.csv(kalivasitaly_08_wfu_metadata, file = "~/Desktop/Database/csv files/u01
 write.csv(kalivasitaly_10_wfu_metadata, file = "~/Desktop/Database/csv files/u01_peter_kalivas_italy/kalivasitaly_10_wfu_metadata.csv", row.names = F)
 write.csv(kalivasitaly_10_wfu_metadata, file = "~/Desktop/Database/csv files/u01_peter_kalivas_italy/kalivasitaly_10_wfu_metadata.csv", row.names = F)
 write.csv(kalivasitaly_11_wfu_metadata, file = "~/Desktop/Database/csv files/u01_peter_kalivas_italy/kalivasitaly_11_wfu_metadata.csv", row.names = F)
+write.csv(kalivasitaly_12_wfu_metadata, file = "~/Desktop/Database/csv files/u01_peter_kalivas_italy/kalivasitaly_12_wfu_metadata.csv", row.names = F)
+write.csv(kalivasitaly_13_wfu_metadata, file = "~/Desktop/Database/csv files/u01_peter_kalivas_italy/kalivasitaly_13_wfu_metadata.csv", row.names = F)
 
 
 ## metadata

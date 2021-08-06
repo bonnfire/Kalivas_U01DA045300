@@ -47,7 +47,6 @@
 
 
 # import all and then separate by tab
-setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data/")
 u01.importxlsx <- function(xlname){
   path_sheetnames <- excel_sheets(xlname)
   df <- lapply(excel_sheets(path = xlname), read_excel, path = xlname)
@@ -59,6 +58,8 @@ all_excel_fnames_c01_10 <- list.files(path = "~/Dropbox (Palmer Lab)/Roberto_Cic
 
 # extract shipping information for metadata 
 kalivas_italy_extract_shipping_metadata <- function(files, sheet){
+  setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data/")
+  
   data_breeder_list <-  lapply(files, function(i) {
     
     u01.importxlsx <- function(xlname){
@@ -79,20 +80,26 @@ kalivas_italy_extract_shipping_metadata <- function(files, sheet){
       gsub(".*12h.*", "heroin_sa_12h", .) %>% 
       gsub(".*1(h|st).*", "heroin_sa_1h", .) %>% 
       gsub(".priming.*", "priming", .) %>% 
-      gsub(".*extinction.*", "extinction", .)
+      gsub(".*extinction.*", "extinction", .) %>% 
+      gsub(".*surgery.*", "surgery", .)
     
+    if(any(grepl(sheet, names(data_allsheets)))){
     data_breeder <- data_allsheets[[grep(sheet, names(data_allsheets), ignore.case = T)]] # made to extract any of the sheets
     
     df <- data_breeder 
     names(df) <- df[1, ] %>% unlist() %>% as.character %>% make_clean_names() 
     df <- df[-1, ]
     
+    # go through the rows to find the row with the column names and clean it up
     while(grepl("^na|^info", names(df)[1])&grepl("^na", names(df)[2])){
       names(df) <- df[1, ] %>% unlist() %>% as.character %>% make_clean_names() 
       df <- df[-1, ]
     }
     
     return(df)
+    }
+    else
+      df <- data.frame()
   })
   return(data_breeder_list)
 }
@@ -107,28 +114,44 @@ kalivas_italy_shipping_metadata_c01_10_df_ids <- kalivas_italy_shipping_metadata
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
   mutate(transponder_id = gsub("([.]|E14)", "", transponder_id),
-         transponder_id = ifelse(nchar(transponder_id) == 14, paste0(transponder_id, "0"), transponder_id)) %>%
+         transponder_id = ifelse(nchar(transponder_id) == 14, paste0(transponder_id, "0"), transponder_id),
+         animal_id = coalesce(animal_id, animal_number)) %>%
   subset(!is.na(transponder_id)) %>% 
   mutate(d_o_b = as.numeric(d_o_b) %>% as.character() %>% openxlsx::convertToDate() %>% as.POSIXct(format="%Y-%m-%d")) %>% 
-  select(cohort, transponder_id, animal_id, sex, d_o_b)
+  select(cohort, transponder_id, animal_id, sex, d_o_b, coat_color)
 
 
 # join to the metadata here to verify rfid's and fill in dob's 
-kalivas_italy_metadata_c01_10_df <- kalivas_italy_shipping_metadata_c01_10_df_ids %>% 
-  full_join(WFU_KalivasItaly %>% mutate(cohort = ifelse(!grepl("^C", cohort), paste0("C", cohort), cohort)) %>% select(cohort, rfid, sex, dob, comment), by = c("cohort", "transponder_id" = "rfid")) %>% 
+
+# join to postgresql database 
+# library("RPostgreSQL") 
+# library("DBI")
+con <- dbConnect(dbDriver("PostgreSQL"), dbname="PalmerLab_Datasets",user="postgres",password="postgres")
+kalivas_metadata_db <- dbGetQuery(con, "select * from \"u01_peter_kalivas_italy\".\"wfu_master\"")
+
+kalivas_italy_excel_metadata_c01_10_df <- kalivas_italy_shipping_metadata_c01_10_df_ids %>% 
+  mutate(d_o_b = as.Date(d_o_b)) %>%
+  full_join(kalivas_metadata %>%
+              select(cohort, rfid, sex, dob, coatcolor, comments), by = c("cohort", "transponder_id" = "rfid")) %>% # created with WFU EXCEL R ### WFU_KalivasItaly <- WFU_KalivasItaly_test_df %>% bind_rows(kalivasitaly_07_wfu_metadata %>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date)) %>% bind_rows(kalivasitaly_08_wfu_metadata%>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date) %>% mutate_at(vars(one_of("litternumber", "littersize", "shipmentbox", "shipmentage", "weanage")), as.numeric)) %>% bind_rows(kalivasitaly_09_wfu_metadata%>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date) %>% mutate_at(vars(one_of("litternumber", "littersize", "shipmentbox", "shipmentage", "weanage")), as.numeric))%>% bind_rows(kalivasitaly_10_wfu_metadata%>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date) %>% mutate_at(vars(one_of("litternumber", "littersize", "shipmentbox", "shipmentage", "weanage")), as.numeric))
   mutate(sex.x = coalesce(sex.x, sex.y),
-         d_o_b = coalesce(d_o_b, dob)) %>%
+         d_o_b = coalesce(d_o_b, dob)) %>% 
   rename("sex" = "sex.y",
          "rfid" = "transponder_id") %>% 
-  mutate(dob = as.POSIXct(dob, format="%Y-%m-%d")) %>%
-  select(cohort, rfid, animal_id, sex, dob, comment)
+  mutate(rfid = as.character(rfid))
+  
+
+write.csv(kalivas_italy_excel_metadata_c01_10_df, "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/kalivas_italy_excel_metadata_c01_10_df.csv", row.names = F)
+kalivas_italy_metadata_c01_10_df <- read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/kalivas_italy_excel_metadata_c01_10_df.csv", colClasses = "character") %>% 
+  select(cohort, rfid, animal_id, sex, dob, coatcolor, comments)
 
 # check for incorrectly labelled sexes
 kalivas_italy_metadata_c01_10_df %>% subset(sex.x != sex.y)
 kalivas_italy_metadata_c01_10_df %>% subset(d_o_b != dob)
+kalivas_italy_metadata_c01_10_df %>% get_dupes(rfid)
+kalivas_italy_metadata_c01_10_df %>% subset(is.na(animal_id)) # they all have comments explaining why 
 
 
-
+rm(list = ls(pattern = '(kalivas_italy_shipping_metadata_c01_10)'))
 
 
 
@@ -297,7 +320,6 @@ kalivas_italy_epm_excel_processed_c01_10_df <- kalivas_italy_epm_excel_processed
 
 
 
-
 ############################
 # OPEN FIELD TASK
 ############################
@@ -454,6 +476,8 @@ kalivas_italy_tf_excel_processed_c01_10_df <- kalivas_italy_tf_excel_processed_c
 ############################
 
 extract_process_excel_manysessions_lapply_italy <- function(files, sheet){
+  setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/raw data/")
+  
   data_breeder_list <-  lapply(files, function(i) {
     u01.importxlsx <- function(xlname){
       path_sheetnames <- excel_sheets(xlname)
@@ -714,12 +738,12 @@ kalivas_italy_lga_excel_c01_10_df <- kalivas_italy_lga_excel_c01_10 %>%
 
 
 ## clean df 
-kalivas_italy_lga_excel_processed_c01_10_df <- kalivas_italy_lga_excel_c01_10_df %>% 
-  mutate(cohort = gsub(".*batch-(\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
-         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
-  left_join()
-
-kalivas_italy_shipping_metadata_c01_10_df_ids
+# kalivas_italy_lga_excel_processed_c01_10_df <- kalivas_italy_lga_excel_c01_10_df %>% 
+#   mutate(cohort = gsub(".*batch-(\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+#          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
+#   left_join()
+# 
+# kalivas_italy_shipping_metadata_c01_10_df_ids
 
 
 ############################
@@ -752,6 +776,62 @@ kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10 %>%
   rbindlist(fill = T, idcol = "file")
 ## see gwas code below to correct sessions in cohorts
 
+kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %>% 
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
+  mutate(sabox = toupper(sabox) %>% gsub("(\\d+) (LEFT|RIGHT)", "\\2 \\1", .) %>% gsub("[.]0", "", .)) %>% 
+  mutate(internal_id = parse_number(internal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
+  mutate(saroom = as.numeric(saroom) %>% as.character)
+
+## check if transponder/id's is different 
+kalivas_italy_priming_excel_c01_10_df %>% full_join(kalivas_italy_metadata_c01_10_df, by = "rfid") %>% naniar::vis_miss()
+# check if the sheet id's are different from the general info page 
+kalivas_italy_priming_excel_c01_10_df %>% full_join(kalivas_italy_metadata_c01_10_df, by = "rfid") %>% subset(internal_id != animal_id|cohort.x!=cohort.y|sex.x!=sex.y) %>% select(cohort.x, cohort.y, rfid, sex.x, sex.y, internal_id, animal_id) %>% View()
+kalivas_italy_priming_excel_c01_10_df %>% full_join(kalivas_italy_metadata_c01_10_df, by = "rfid") %>% subset(internal_id!=animal_id&!cohort.x %in% c("C06", "C08")&!cohort.y %in% c("C06", "C08")) %>% select(cohort.x, cohort.y, rfid, sex.x, sex.y, internal_id, animal_id) %>% distinct %>% View()
+
+kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %>% 
+  select(-rfid, -sex) %>% 
+  left_join(kalivas_metadata_db %>% 
+              mutate(labanimalid = parse_number(labanimalid) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
+              select(labanimalid, rfid, sex), by = c("internal_id" = "labanimalid")) %>% 
+  subset(internal_id != "ITNA") %>% 
+  subset(!cohort %in% c("C01", "C02"))
+
+
+############################
+### Box allocation
+############################
+italy_rat_boxes <- u01.importxlsx("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file/RAT-BOX ALLOCATION.xlsx") %>% 
+  lapply(function(x){
+    x <- x %>% 
+      clean_names %>% 
+      select_all(~gsub(".*batch.*", "cohort", tolower(.))) %>% 
+      select_all(~gsub(".*(internal|animal).*", "labanimalid", tolower(.))) %>% 
+      select_all(~gsub(".*room.*", "room", tolower(.))) %>% 
+      select_all(~gsub(".*box.*", "box", tolower(.))) %>% 
+      select_all(~gsub(".*ponder_id.*", "rfid", tolower(.))) %>% 
+      select_all(~gsub(".*heroin.*", "heroin_saline_yoked", tolower(.))) 
+    return(x)
+    })
+italy_rat_boxes_df <- italy_rat_boxes %>% 
+  rbindlist(fill = T) %>% 
+  rename('comments' = 'x8') %>% 
+  select(cohort, sex, labanimalid, rfid, room, box, heroin_saline_yoked, comments) %>% 
+  mutate(labanimalid = ifelse(rfid == "933000320048660", "IT280", labanimalid)) %>% 
+  mutate(labanimalid_num = parse_number(labanimalid)) %>% 
+  subset(!is.na(cohort)) %>%
+  subset(!is.na(rfid)) %>% 
+  mutate(cohort = parse_number(cohort) %>% str_pad(2, side = "left", "0") %>% paste0("C", .)) %>% 
+  mutate(box = toupper(box) %>% gsub("(\\d+) (LEFT|RIGHT)", "\\2 \\1", .)) %>% 
+  mutate(heroin_saline_yoked = toupper(heroin_saline_yoked))
+
+
+# check across files 
+## XX 08/04/2021
+kalivas_italy_priming_excel_c01_10_df %>% select(cohort, saroom, sabox, internal_id, sex) %>% 
+  left_join(italy_rat_boxes_df %>% 
+              mutate(room = as.character(room)), by = c("cohort", "saroom" = "room", "sabox" = "box")) %>% subset(!is.na(labanimalid))
+
 
 
 
@@ -767,13 +847,16 @@ total_consumption_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
   subset(measurement == "infusions"& as.numeric(session) <= 12) %>% 
   group_by(rfid, internal_id) %>% 
   mutate(total_consumption=sum(as.numeric(value), na.rm = T)*20) %>% 
-  mutate(date_consumption = max(ymd(date), na.rm = T)) %>% # find the date of the last session
+  mutate(date_consumption = max(lubridate::ymd(date), na.rm = T)) %>% # find the date of the last session
   ungroup() %>%
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
   subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows  
   distinct(cohort, rfid, internal_id, total_consumption, date_consumption)
 
+# write csv for beverly 
+write.csv(kalivas_italy_lga_excel_c01_10_df, "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/preliminary GWAS files/italy_lga_sessions_xl.csv", row.names = F)
+write.csv(total_consumption_c01_10, "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/preliminary GWAS files/italy_consumption_xl.csv", row.names = F)
 
 # escalation 
 # (mean of sessions 10-12)*20 - (mean of sessions 1-3)*20
@@ -789,7 +872,7 @@ escalation_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
   subset(!is.na(rfid)) %>% # checked in the Excel, no rfid's, completely empty rows
   group_by(rfid, internal_id) %>%
-  mutate(date_esc = max(ymd(date), na.rm = T)) %>% # find the date of the last session
+  mutate(date_esc = max(lubridate::ymd(date), na.rm = T)) %>% # find the date of the last session
   ungroup() %>% 
   distinct(cohort, rfid, internal_id, session_cat, session_mean, date_esc) %>% 
   mutate_if(is.numeric, ~.*20) %>% 
@@ -802,11 +885,16 @@ escalation_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
 # breakpoint
 # breakpoint value in the PR session after first set of self admin sessions
 ## missing cohorts 2 
+
 breakpoint_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>% 
   mutate(rfid = gsub("([.]|E14)", "", rfid),
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
   mutate(measurement = ifelse(measurement == "breakpoint", "bp", measurement)) %>% 
   subset(measurement == "bp"& session == "pr") %>% 
+  group_by(rfid, internal_id) %>%
+  mutate(date_min = min(lubridate::ymd(date), na.rm = T)) %>% # find the date of the last session
+  ungroup() %>% 
+  subset(date == date_min) %>% 
   mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
   rename("breakpoint" = "value",
@@ -818,11 +906,10 @@ breakpoint_c01_10 <- kalivas_italy_lga_excel_c01_10_df %>%
 
 # heroin prime seeking 
 # sum of the active lever during the 5th and 6th hour of the session
+
 prime_seeking_c01_10 <- kalivas_italy_priming_excel_c01_10_df %>%
   mutate(rfid = gsub("([.]|E14)", "", rfid),
          rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>%
-  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
-         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>%
   rowwise() %>%
   mutate(session = replace(session, session == "1"&cohort %in% c("C03", "C04", "C06", "C07", "C08", "C09", "C10"), "session_total"),
          session = replace(session, session %in% as.character(c(2:7))&cohort%in% c("C03", "C04", "C06", "C07", "C08", "C09", "C10"), as.character(as.numeric(session) - 1))) %>%
@@ -850,7 +937,8 @@ extinction_6_c01_10 <- kalivas_italy_extinction_excel_c01_10_df %>%
   rename("active_presses" = "value") %>% 
   distinct(cohort, rfid, internal_id, session, active_presses, date) %>% 
   spread(session, active_presses) %>% 
-  rename("date_extinction" = "date")
+  rename("date_extinction" = "date",
+         "active_presses_day6"= "session6")
 
 
 # cued seeking
@@ -866,7 +954,7 @@ cuedseeking_c01_10 <- kalivas_italy_extinction_excel_c01_10_df %>%
   rename("active_presses" = "value") %>% 
   distinct(cohort, rfid, internal_id, session, active_presses, date) %>% 
   spread(session, active_presses) %>% 
-  rename("session_reinstatement" = "sessionrelapse", 
+  rename("active_presses" = "sessionrelapse", 
          "date_cued" = "date")
 
 
@@ -890,15 +978,38 @@ openarm_epm_c01_10 <- kalivas_italy_epm_excel_processed_c01_10_df %>%
   rename("date_openarm" = "date") %>% 
   select(cohort, rfid, internal_id, totaltimeopenarm_sec, date_openarm)
 
+## joining all columns
+
+gwas_kalivas_italy_c01_10 <- full_join(extinction_6_c01_10, prime_seeking_c01_10, by = c("cohort", "internal_id", "rfid")) %>% 
+  full_join(total_consumption_c01_10, by = c("cohort", "internal_id", "rfid")) %>% 
+  full_join(breakpoint_c01_10, by = c("cohort", "internal_id", "rfid")) %>% 
+  full_join(escalation_c01_10, by = c("cohort", "internal_id", "rfid")) %>%  
+  full_join(cuedseeking_c01_10, by = c("cohort", "internal_id", "rfid")) %>% 
+  full_join(oft_c01_10, by = c("cohort", "internal_id", "rfid")) %>% 
+  full_join(openarm_epm_c01_10, by = c("cohort", "internal_id", "rfid")) %>% 
+  mutate(internal_id = ifelse(!grepl("^IT\\d+", internal_id), paste0("IT", str_pad(internal_id, 3, "left", "0")), internal_id))
+  
+gwas_kalivas_italy_c01_10_df <- gwas_kalivas_italy_c01_10 %>% left_join(kalivas_italy_metadata_c01_10_df, by = c("cohort", "internal_id"="animal_id"))
+  
+gwas_kalivas_italy_c01_10_df %>% subset(rfid.x != rfid.y)
+gwas_kalivas_italy_c01_10_df %>% naniar::vis_miss()
 
 
+gwas_kalivas_italy_c01_10_df_final <- gwas_kalivas_italy_c01_10_df %>% 
+  mutate(rfid.x = as.numeric(rfid.x),
+         rfid.x = ifelse(is.na(rfid.x)|rfid.x != rfid.y, rfid.y, rfid.x)) %>% 
+  mutate(rfid.x = as.character(rfid.x)) %>% 
+  subset(!grepl("average", internal_id, ignore.case = T)) %>% 
+  group_by(rfid.x) %>% fill(-rfid.x, .direction = "downup") %>% ungroup() %>% distinct() %>% 
+  rename("rfid" = "rfid.x") %>% 
+  mutate_at(vars(matches("date")), ~difftime(., dob, units = c("days")) %>% as.numeric() %>% round) %>% # calculate the age at exp
+  setNames(gsub("date", "age_at", names(.))) %>% 
+  select(-rfid.y)
   
   
+gwas_kalivas_italy_c01_10_df_final %>% get_dupes(rfid)
 
-  
-
-
-
+write.csv(gwas_kalivas_italy_c01_10_df_final, "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/preliminary GWAS files/gwas_italytraits_rppr_n400.csv", row.names = F)
 
 
 
