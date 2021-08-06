@@ -781,7 +781,10 @@ kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %
          cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
   mutate(sabox = toupper(sabox) %>% gsub("(\\d+) (LEFT|RIGHT)", "\\2 \\1", .) %>% gsub("[.]0", "", .)) %>% 
   mutate(internal_id = parse_number(internal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
-  mutate(saroom = as.numeric(saroom) %>% as.character)
+  mutate(saroom = as.numeric(saroom) %>% as.character) %>% 
+  mutate(session = ifelse(as.numeric(session) ==1&grepl("active", measurement), "total", as.numeric(session) - 1)) %>% 
+  mutate(heroin_salineyoked = ifelse(grepl("yoke", heroin_salineyoked, ignore.case = T), "YOKED", toupper(heroin_salineyoked)))
+
 
 ## check if transponder/id's is different 
 kalivas_italy_priming_excel_c01_10_df %>% full_join(kalivas_italy_metadata_c01_10_df, by = "rfid") %>% naniar::vis_miss()

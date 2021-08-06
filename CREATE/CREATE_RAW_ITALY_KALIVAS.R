@@ -298,7 +298,7 @@ primed_presses_byhour_5_6 <- lapply(grep("primed rein", raw_filenames_italy_kali
   box = fread(paste0("awk '/Box:/{print $2}' '", x, "'"), header = F, fill = T)
   
   inactive_lever =  fread(paste0("awk '/^L:/{flag=1;next}/^R:/{flag=0}flag' ", "'",  x, "'"), header = F, fill = T)
-  active_lever =  fread(paste0("awk '/^R:/{flag=1;next}/^W:/{flag=0}flag' ", "'",  x, "' | awk '/0:/{print $3 + $4}'"), header = F, fill = T)
+  active_lever =  fread(paste0("awk '/^R:/{flag=1;next}/^W:/{flag=0}flag' ", "'",  x, "'"), header = F, fill = T)
   
   # inactive 
   # find each subject and split 
@@ -316,8 +316,8 @@ primed_presses_byhour_5_6 <- lapply(grep("primed rein", raw_filenames_italy_kali
       mutate(bin = 1:n()) # add bin number 
     
     vector_sum <- vector %>% 
-      mutate(group = ifelse(between(bin, 49, 61), "inactive_hour5", 
-                            ifelse(between(bin, 62, 73), "inactive_hour6", NA))) %>% 
+      mutate(group = ifelse(between(bin, 49, 60), "inactive_hour5", 
+                            ifelse(between(bin, 61, 72), "inactive_hour6", NA))) %>% 
       subset(!is.na(group)) %>% 
       group_by(group) %>% 
       mutate(sum = sum(rewards, na.rm = T))
@@ -347,8 +347,8 @@ primed_presses_byhour_5_6 <- lapply(grep("primed rein", raw_filenames_italy_kali
       mutate(bin = 1:n()) # add bin number 
     
     vector_sum <- vector %>% 
-      mutate(group = ifelse(between(bin, 49, 61), "active_hour5", 
-                            ifelse(between(bin, 62, 73), "active_hour6", NA))) %>% 
+      mutate(group = ifelse(between(bin, 49, 60), "active_hour5", 
+                            ifelse(between(bin, 61, 72), "active_hour6", NA))) %>% 
       subset(!is.na(group)) %>% 
       group_by(group) %>% 
       mutate(sum = sum(rewards, na.rm = T))
@@ -397,12 +397,51 @@ kalivas_italy_priming_excel_c01_10_df %>% distinct(internal_id, sabox, sex) %>%
 
 ##XX potential internal_id 
 priming_id <- kalivas_italy_priming_excel_c01_10_df %>% distinct(internal_id, sabox, sex) %>% 
-  mutate(num_seq = parse_number(internal_id)) %>% 
-  full_join(primed_filename_c03_09_df, by = c("num_seq", "sex"))%>%
-  subset(!is.na(internal_id)) 
+  mutate(num_seq = parse_number(internal_id)) 
+# check if yoked is repeat
+priming_id %>% get_dupes(num_seq)
+priming_id <- priming_id %>% 
+  full_join(primed_filename_c03_09_df, by = c("num_seq")) %>%
+  subset(!(is.na(internal_id)&num_seq != 0)) %>%
+  subset(sex.y == "YOKED"|sex.x==sex.y|is.na(sex.y)) # fix the files with
 
-anti_join(primed_filename_c03_09_df, priming_id, by = "filename") ## XX 
+anti_join(primed_filename_c03_09_df, priming_id, by = "filename") ## XX work on this 
 anti_join(priming_id, primed_filename_c03_09_df, by = "filename")
+
+# bring up as an issue 
+## primed_filename_c03_09_df %>% subset(grepl("cohort_(07|09)", filename)) %>% subset((sex=="M"&num_seq%in% c("249", "250", "329","330"))|(sex=="F"&num_seq%in% c("251", "252","331","332"))|(num_seq%in% c("249", "250", "329","330", "251", "252","331","332")&sex == "YOKED")) %>% get_dupes(num_seq) %>% select("labanimalid_number" = num_seq, sex, filename) %>% as.data.frame()
+
+# fix yoke with sex 
+priming_id <- priming_id %>% 
+  select(-sex.y) %>% 
+  rename("sex" = "sex.x")
+
+# check for dupes
+C3_PRIMING_SALINE <- data.frame()
+C4_PRIMING_SALINE <- data.frame()
+
+kalivas_italy_priming_excel_c01_10_df %>% subset(cohort %in% c("C03", "C04")&grepl("yoke", heroin_salineyoked, ignore.case = T)) %>% distinct(cohort, rfid, internal_id, sex, sabox) 
+priming_id %>% get_dupes(num_seq)
+
+
+# join to raw data by the box 
+primed_presses_byhour_5_6_df_id <- primed_presses_byhour_5_6_df %>% 
+  left_join(priming_id %>% 
+              mutate(box = parse_number(sabox)) %>% 
+                       rbind(kalivas_italy_priming_excel_c01_10_df %>% 
+                               subset(cohort %in% c("C03", "C04")&grepl("yoke", heroin_salineyoked, ignore.case = T)) %>% 
+                               distinct(cohort, internal_id, sabox, sex) %>% 
+                               mutate(box = parse_number(sabox)) %>% 
+                               mutate(filename = ifelse(cohort == "C03", 
+                                                        "/home/bonnie/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file/unicam_cohort_03/Primed reinstatment/C3_PRIMING -SALINE.txt", 
+                                                        "/home/bonnie/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file/unicam_cohort_04/Primed reinstatment/C4_PRIMING-SALINE e 160.txt")) %>% 
+                               mutate(num_seq = NA) %>% 
+                               select(-cohort)),
+            by = c("filename", "box")) 
+
+primed_presses_byhour_5_6_df_id <- primed_presses_byhour_5_6_df_id %>% 
+  subset(!is.na(sabox))
+
 
 
 ##################################################
