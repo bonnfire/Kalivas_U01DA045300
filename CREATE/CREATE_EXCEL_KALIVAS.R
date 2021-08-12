@@ -153,6 +153,25 @@ Kalivas_metadata %>% subset(!is.na(heroin_or_saline)) %>% subset(grepl("died", c
 
 
 
+## extract Beverly's metadata
+kalivas_us_box_weight <- read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/us/generated/Kalivas_LGA_MedPC_Comparison_Similarities_BW.csv", stringsAsFactors = F) %>% 
+  clean_names %>%
+  rename("rfid" = "microchip") %>% 
+  mutate(rfid = rfid %>% as.numeric %>% as.character) %>% 
+  select(-x) %>% 
+  rbind(read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/us/generated/Kalivas_LGA_MedPC_Comparison_Discrepancies_BW.csv", stringsAsFactors = F) %>% 
+          clean_names %>% 
+          rename("rfid" = "microchip") %>% 
+          mutate(rfid = rfid %>% as.numeric %>% as.character) %>%
+          mutate(self_administration_room = coalesce(lga_self_administration_room, med_pc_self_administration_room)) %>% 
+          mutate(self_administration_box = coalesce(lga_self_administration_box, med_pc_self_administration_box)) %>% 
+          distinct(rfid, sex, internal_id, self_administration_room, self_administration_box, cohort, body_weight)) %>% 
+  rename("surgery_weight" = "body_weight",
+         "saroom" = "self_administration_room",
+         "sabox" = "self_administration_box") %>% 
+  select(rfid, saroom, sabox, surgery_weight)
+
+
 
   ############### extract for raw vs excel comparison
 
@@ -253,6 +272,8 @@ kalivas_lga_excel_c01_09_df <- kalivas_lga_excel_c01_09_df %>%
 ##  PR_test
 
 extract_process_excel_shortened_lapply <- function(files, sheet){
+  setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
+  
   data_breeder_list <-  lapply(files, function(i) {
     data_allsheets = u01.importxlsx(i)
     # data_breeder <- data_allsheets$info_from_breeder
@@ -303,11 +324,15 @@ kalivas_pr_excel_c01_09_df <- kalivas_pr_excel_c01_09_df %>%
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>% 
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
 
+
+
 # *****************
 ##  Extinction_prime_test (Is it primed reinstatement?)
 
 extract_process_excel_expr_lapply <- function(files, sheet){
-  data_breeder_list <-  lapply(files, function(i) {
+  setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
+  
+    data_breeder_list <-  lapply(files, function(i) {
     data_allsheets = u01.importxlsx(i)
     data_breeder <- data_allsheets[[sheet]] # made to extract any of the sheets
     
@@ -380,7 +405,7 @@ kalivas_ex_excel_c01_09_df <- kalivas_ex_excel_c01_09_df %>%
   mutate(cohort = paste0("C", str_pad(str_match(tolower(file), "cohort \\d+") %>% parse_number() %>% as.character(), 2, "left", "0"))) %>%
   naniar::replace_with_na_all(condition = ~.x %in% c("N/A", "NA", ""))
 
-# kalivas_ex_excel_c01_09_df_wide <- kalivas_ex_excel_c01_09_df%>% 
+# kalivas_ex_excel_c01_09_df_wide <- kalivas_ex_excel_c01_09_df%>%
 #   pivot_wider(names_from = session, values_from = active_lever:discrete_stimulus)
   
 
@@ -516,6 +541,8 @@ kalivas_cued_excel_c01_09_df <- kalivas_cued_excel_c01_09_df %>%
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
 
 extract_process_excel_repeatedmeasures2_lapply <- function(files, sheet){ # for use on before self admin and after self admin
+  setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files")
+  
   data_breeder_list <-  lapply(files, function(i) {
 
     u01.importxlsx <- function(xlname){

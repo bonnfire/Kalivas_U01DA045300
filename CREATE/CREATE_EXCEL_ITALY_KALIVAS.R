@@ -131,7 +131,7 @@ kalivas_metadata_db <- dbGetQuery(con, "select * from \"u01_peter_kalivas_italy\
 
 kalivas_italy_excel_metadata_c01_10_df <- kalivas_italy_shipping_metadata_c01_10_df_ids %>% 
   mutate(d_o_b = as.Date(d_o_b)) %>%
-  full_join(kalivas_metadata %>%
+  full_join(kalivas_metadata_db %>%
               select(cohort, rfid, sex, dob, coatcolor, comments), by = c("cohort", "transponder_id" = "rfid")) %>% # created with WFU EXCEL R ### WFU_KalivasItaly <- WFU_KalivasItaly_test_df %>% bind_rows(kalivasitaly_07_wfu_metadata %>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date)) %>% bind_rows(kalivasitaly_08_wfu_metadata%>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date) %>% mutate_at(vars(one_of("litternumber", "littersize", "shipmentbox", "shipmentage", "weanage")), as.numeric)) %>% bind_rows(kalivasitaly_09_wfu_metadata%>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date) %>% mutate_at(vars(one_of("litternumber", "littersize", "shipmentbox", "shipmentage", "weanage")), as.numeric))%>% bind_rows(kalivasitaly_10_wfu_metadata%>% mutate_at(vars(one_of("dob", "dow", "shipmentdate")), as.Date) %>% mutate_at(vars(one_of("litternumber", "littersize", "shipmentbox", "shipmentage", "weanage")), as.numeric))
   mutate(sex.x = coalesce(sex.x, sex.y),
          d_o_b = coalesce(d_o_b, dob)) %>% 
@@ -767,6 +767,35 @@ kalivas_italy_extinction_excel_c01_10_df <- kalivas_italy_extinction_excel_c01_1
   mutate(saroom = parse_number(saroom) %>% as.character(),
          sabox = tolower(sabox) %>% gsub(" ", "", .) %>% gsub("(\\d+)(\\D+)", "\\2\\1", .)) 
 
+
+## create cued rein object for qc 
+kalivas_italy_cued_excel_c01_10_df <- kalivas_italy_extinction_excel_c01_10_df %>% 
+  mutate(rfid = gsub("([.]|E14)", "", rfid),
+         rfid = ifelse(nchar(rfid) == 14, paste0(rfid, "0"), rfid)) %>% 
+  mutate(cohort = gsub(".*batch[- ](\\d+).*", "\\1", file, ignore.case = T) %>% parse_number(),
+         cohort = paste0("C", str_pad(as.character(cohort), 2, "left", "0"))) %>% 
+  subset(measurement == "activelever"&session=="relapse") %>% 
+  mutate(internal_id = parse_number(internal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
+  mutate(heroin_salineyoked = ifelse(grepl("yoke", heroin_salineyoked, ignore.case = T), "YOKED", toupper(heroin_salineyoked)))
+
+
+kalivas_italy_cued_excel_c01_10_df <- kalivas_italy_cued_excel_c01_10_df %>% 
+  select(-rfid, -sex) %>% 
+  left_join(kalivas_italy_excel_metadata_c01_10_df  %>% 
+              mutate(animal_id = parse_number(animal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
+              select(animal_id, rfid, sex), by = c("internal_id" = "animal_id")) %>% 
+  subset(!cohort %in% c("C01", "C02"))
+
+kalivas_italy_cued_excel_c01_10_df <- kalivas_italy_cued_excel_c01_10_df %>% 
+  mutate(saroom = as.numeric(saroom) %>% as.character) %>% 
+  mutate(value = as.numeric(value)) %>% 
+  rename("xl" = "value") %>% 
+  mutate(sabox = gsub("[.](\\d)0", "\\1", sabox) %>% gsub("(\\D+)(\\d+)", "\\1 \\2", .) %>% toupper) %>% 
+  distinct(cohort, rfid, internal_id, sex, saroom, sabox, heroin_salineyoked, xl, date) %>% 
+  mutate(date = ifelse(cohort == "C06", "2020-05-15", date)) %>% 
+  distinct %>% 
+  subset(internal_id!="ITNA")
+
 ############################
 ### Priming
 ############################
@@ -783,7 +812,14 @@ kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %
   mutate(internal_id = parse_number(internal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
   mutate(saroom = as.numeric(saroom) %>% as.character) %>% 
   mutate(session = ifelse(as.numeric(session) ==1&grepl("active", measurement), "total", as.numeric(session) - 1)) %>% 
-  mutate(heroin_salineyoked = ifelse(grepl("yoke", heroin_salineyoked, ignore.case = T), "YOKED", toupper(heroin_salineyoked)))
+  mutate(heroin_salineyoked = ifelse(grepl("yoke", heroin_salineyoked, ignore.case = T), "YOKED", toupper(heroin_salineyoked))) %>% 
+  mutate(date = ifelse(cohort == "C03", "2019-10-18", 
+                       ifelse(cohort == "C04", "2019-11-29",
+                              ifelse(cohort == "C06", "2020-05-08",
+                                     ifelse(cohort == "C10", "2021-04-16", date))))) %>% 
+  group_by(cohort) %>% 
+  fill(date) %>% 
+  ungroup()
 
 
 ## check if transponder/id's is different 
@@ -798,7 +834,8 @@ kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %
               mutate(labanimalid = parse_number(labanimalid) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
               select(labanimalid, rfid, sex), by = c("internal_id" = "labanimalid")) %>% 
   subset(internal_id != "ITNA") %>% 
-  subset(!cohort %in% c("C01", "C02"))
+  subset(!cohort %in% c("C01", "C02")) 
+  
 
 
 ############################
@@ -972,6 +1009,14 @@ oft_c01_10 <- kalivas_italy_oft_excel_processed_c01_10_df %>%
   rename("date_oft" = "date") %>% 
   select(cohort, rfid, internal_id, distancetraveled_cm, timetraveled, rears, date_oft)
 
+# check if there are any mistakes in id's
+# openarm_epm_c01_10 %>% 
+#   mutate(internal_id = ifelse(!grepl("^IT\\d+", internal_id), paste0("IT", str_pad(internal_id, 3, "left", "0")), internal_id)) %>% 
+#   full_join(kalivas_italy_excel_metadata_c01_10_df, by = c("cohort", "internal_id" = "animal_id")) %>% 
+#   naniar::vis_miss()
+
+oft_c01_10 %>% get_dupes(rfid)
+
 ## Plus maze
 # Time point 1, total time open arm
 
@@ -980,6 +1025,14 @@ openarm_epm_c01_10 <- kalivas_italy_epm_excel_processed_c01_10_df %>%
   rename("internal_id" = "ratinternalid") %>% 
   rename("date_openarm" = "date") %>% 
   select(cohort, rfid, internal_id, totaltimeopenarm_sec, date_openarm)
+
+
+# check if there are any mistakes in id's
+# openarm_epm_c01_10 %>% 
+#   mutate(internal_id = ifelse(!grepl("^IT\\d+", internal_id), paste0("IT", str_pad(internal_id, 3, "left", "0")), internal_id)) %>% 
+#   full_join(kalivas_italy_excel_metadata_c01_10_df, by = c("cohort", "internal_id" = "animal_id")) %>% 
+#   naniar::vis_miss()
+
 
 ## joining all columns
 

@@ -416,9 +416,6 @@ priming_id <- priming_id %>%
   select(-sex.y) %>% 
   rename("sex" = "sex.x")
 
-# check for dupes
-C3_PRIMING_SALINE <- data.frame()
-C4_PRIMING_SALINE <- data.frame()
 
 kalivas_italy_priming_excel_c01_10_df %>% subset(cohort %in% c("C03", "C04")&grepl("yoke", heroin_salineyoked, ignore.case = T)) %>% distinct(cohort, rfid, internal_id, sex, sabox) 
 priming_id %>% get_dupes(num_seq)
@@ -452,6 +449,8 @@ primed_presses_byhour_5_6_df_id <- primed_presses_byhour_5_6_df_id %>%
 
 ########### INACTIVE LEVER PRESSES (LP), ACTIVE LP, AND PUMP ACTIVATIONS
 read.relapse <- function(x){
+  setwd("~/Dropbox (Palmer Lab)/Roberto_Ciccocioppo_U01/MedPC_data file")
+  
   cued_rein <- fread(paste0("awk '/Group:/{flag=1;next}/^$/{flag=0}flag' ", "'", x, "'", " | awk '/Box:| 0:/{print $1, $2}'"), header = F, fill = T)
   cued_rein_split <- split(cued_rein, findInterval(1:nrow(cued_rein), grep("Box:", cued_rein$V1)))
   maxlength <- cued_rein_split %>% sapply(nrow) %>% max #get the max number of "arrays"
@@ -477,7 +476,7 @@ relapse_raw_c03_09_df <- relapse_raw_c03_09 %>%
 names(relapse_raw_c03_09_df) <- c("box", "A", "inactive_presses", "active_presses", "infusions", "filename")
 relapse_raw_c03_09_df <- relapse_raw_c03_09_df %>% 
   mutate_all(as.character) %>%
-  mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .))
+  mutate_at(vars(-matches("filename")), ~ gsub(",", ".", .)) 
 
 relapse_raw_c03_09_df %>% mutate(box = as.numeric(box)) %>% subset(box>10) %>% dim
 
@@ -487,8 +486,12 @@ relapse_raw_c03_09_df <- relapse_raw_c03_09_df %>%
          exp = "cued_rein",
          heroin_or_saline = ifelse(grepl("saline", filename, ignore.case = T), "saline", "heroin"))
 
+# active presses 
+relapse_raw_c03_09_df_active <- relapse_raw_c03_09_df %>% select(box, active_presses, filename, cohort) %>% 
+  mutate(active_presses = as.numeric(active_presses))
+
 # filename dictionary
-relapse_c03_09_filename <- relapse_raw_c03_09_df %>% 
+relapse_c03_09_filename <- relapse_raw_c03_09_df_active %>% 
   distinct(filename) %>% 
   mutate(filename2 = gsub(" ", "", filename)) %>%
   rowwise() %>% 
@@ -505,18 +508,42 @@ relapse_c03_09_filename <- relapse_raw_c03_09_df %>%
   unnest(num_seq, keep_empty = T) %>% 
   distinct(filename, sex, num_seq)
   
+# join file dictionary to box allocation
+kalivas_italy_cued_excel_c01_10_df %>% distinct(internal_id, sabox, sex) %>% 
+  mutate(num_seq = parse_number(internal_id)) %>% 
+  full_join(relapse_c03_09_filename, by = c("num_seq", "sex")) %>%
+  naniar::vis_miss() 
+
+##XX potential internal_id 
+priming_id <- kalivas_italy_cued_excel_c01_10_df %>% distinct(internal_id, sabox, sex) %>% 
+  mutate(num_seq = parse_number(internal_id)) 
+# check if yoked is repeat
+priming_id %>% get_dupes(num_seq)
+priming_id <- priming_id %>% 
+  full_join(relapse_c03_09_filename, by = c("num_seq")) %>%
+  subset(!(is.na(internal_id)&num_seq != 0)) %>%
+  subset(sex.y == "YOKED"|sex.x==sex.y|is.na(sex.y)) # fix the files with
+
+anti_join(relapse_raw_c03_09_df_active, priming_id, by = "filename") ## XX work on this 
+anti_join(priming_id, relapse_raw_c03_09_df_active, by = "filename")
+
+# fix yoke with sex 
+priming_id <- priming_id %>% 
+  select(-sex.y) %>% 
+  rename("sex" = "sex.x")
 
 # join to data and by boxes
-relapse_raw_c03_09_df_id <- relapse_raw_c03_09_df %>% 
-  left_join(relapse_c03_09_filename, by = c("filename", "sex")) %>% 
-  left_join(italy_rat_boxes_df %>% 
-              rename("box_fullname" = "box"), by = c("cohort", "sex", "num_seq" = "labanimalid_num")) %>% 
+relapse_raw_c03_09_df_id <- relapse_raw_c03_09_df_active %>% 
+  left_join(priming_id %>% 
+              mutate(box = parse_number(sabox) %>% as.character), by = c("filename", "box")) %>% 
+  rename("labanimalid" = "internal_id") %>% 
   subset(!is.na(labanimalid))
 
-# missing 
-relapse_raw_c03_09_df[!relapse_raw_c03_09_df$filename %in% unique(relapse_raw_c03_09_df_id$filename),]$filename %>% unique
+relapse_raw_c03_09_df_id %>% get_dupes(labanimalid) %>% as.data.frame()
 
-
+# remove excess 
+relapse_raw_c03_09_df_id <- relapse_raw_c03_09_df_id %>% 
+  subset(!(grepl("C5_REINSTATEMENT_F[(]187-196[)].txt", filename)&active_presses > 300))
 
 
 

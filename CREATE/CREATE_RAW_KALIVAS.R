@@ -27,7 +27,7 @@
 
 #### 
 setwd("~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files")
-allcohorts_allexp_filenames_c01_09 <- list.files(full.names = T, recursive = T) %>% grep("Cohort [2-9]", ., value = T) #3969 files 
+allcohorts_allexp_filenames_c01_09 <- list.files(path = "~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/MedPC_raw_data_files", full.names = T, recursive = T) %>% grep("Cohort [2-9]", ., value = T) #3969 files 
 
 allcohorts_allexp_filenames_c01_09_df <- allcohorts_allexp_filenames_c01_09 %>% as.data.frame() %>% 
   mutate_all(as.character) %>% rename("filename" = ".") %>% 
@@ -41,22 +41,6 @@ allcohorts_allexp_filenames_c01_09_df <- allcohorts_allexp_filenames_c01_09 %>% 
     grepl("cue", exp, ignore.case = T) ~ "cued reinstatement", 
     TRUE ~ NA_character_
   ))
-## in addiction tasks 
-
-allcohorts_allexp_filenames_c01_09 <- list.files(full.names = T, recursive = T) %>% grep("Cohort [2-8]", ., value = T) 
-
-allcohorts_allexp_filenames_c01_09_df <- allcohorts_allexp_filenames_c01_09 %>% as.data.frame() %>% 
-  mutate_all(as.character) %>% rename("filename" = ".") %>% 
-  mutate(cohort = str_extract(filename, "Cohort \\d+"), 
-         exp = gsub("[.]/\\D+ \\d+/(\\D+)/.*", "\\1", filename)) %>% 
-  mutate(exp = case_when(
-    grepl("long", exp, ignore.case = T) ~ "lga", 
-    grepl("prime", exp, ignore.case = T) ~ "p_rein", 
-    grepl("prog", exp, ignore.case = T) ~ "pr", 
-    grepl("extinct", exp, ignore.case = T) ~ "extinction", 
-    grepl("cue", exp, ignore.case = T) ~ "cued reinstatement", 
-    TRUE ~ NA_character_
-  )) 
 
 
 # *****************
@@ -257,7 +241,8 @@ lga_raw_c01_09_df <- lga_raw_c01_09 %>%
                        sub(".*comp(uter)? (\\d+).*", "\\2", filename, ignore.case = T) %>% str_trim(),
                        ifelse(grepl("comp", exp, ignore.case = T), parse_number(str_extract(tolower(exp), "comp(uter)?( |_)?\\d+")), NA))) %>% 
   mutate(compbox = ifelse(!is.na(comp), paste0(comp, ".", str_pad(box, 2, "left", "0")), box)) %>% 
-  distinct()
+  distinct() 
+  
 
 
 lga_raw_c01_09_df %>% get_dupes(internal_id, day) %>% View()
@@ -628,7 +613,7 @@ ext_raw_c01_09_df %>% get_dupes(internal_id, day) %>% dim
 ## correct lab animal id's with excel
 ext_raw_c01_09_df_id <- ext_raw_c01_09_df %>% 
   mutate_at(vars(matches("room|box")), as.character) %>% 
-  full_join(kalivas_ex_allcohorts_excel_processed_c01_09_df_wide %>% 
+  full_join(kalivas_ex_excel_c01_09_df_wide %>% 
               mutate(self_administration_box = as.character(self_administration_box),
                      self_administration_box = ifelse(self_administration_room == "R"&grepl("\\d[.]1$", self_administration_box), gsub("([.])(1)$", "\\1\\20", self_administration_box), self_administration_box)) %>% 
               select(cohort, internal_id, self_administration_room, self_administration_box, matches("comments")), by = c("room" = "self_administration_room", "compbox" = "self_administration_box", "cohort")) %>% 
@@ -657,7 +642,7 @@ ext_raw_c01_09_df_wide <- ext_raw_c01_09_df %>%
     # names_glue = "{value}_{day}",
     values_from = c( inactive_lever, active_lever, startdate)
   ) %>% 
-  left_join(kalivas_ex_allcohorts_excel_processed_c01_09_df_wide %>% 
+  left_join(kalivas_ex_excel_c01_09_df_wide %>% 
               mutate(self_administration_box = ifelse(self_administration_room == "R"&grepl("\\d[.]1$", self_administration_box), gsub("([.])(1)$", "\\1\\20", self_administration_box), self_administration_box)) %>% 
               select(internal_id, cohort, self_administration_box) %>%
               rename("compbox" = "self_administration_box"), 
