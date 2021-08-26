@@ -18,4 +18,10 @@ rbind(read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U
       read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/gwas_italytraits_n400_v2.csv",stringsAsFactors = F) %>% 
         mutate(rfid = as.numeric(rfid) %>% as.character)) %>% 
   write.csv(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/preliminary GWAS files/gwas_italyandustraits_n720_v2.csv", row.names = F)
+
+rbind(read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/us/generated/gwas_ustraits_n320_v3.csv",stringsAsFactors = F) %>% 
+        mutate(rfid = as.numeric(rfid) %>% as.character),
+      read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/gwas_italytraits_n400_v3.csv",stringsAsFactors = F) %>% 
+        mutate(rfid = as.numeric(rfid) %>% as.character)) %>% 
+  write.csv(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/preliminary GWAS files/gwas_italyandustraits_n720_v3.csv", row.names = F)
   

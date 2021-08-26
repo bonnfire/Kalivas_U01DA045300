@@ -14,7 +14,7 @@ u01.importxlsx <- function(xlname){
   names(df) <- path_sheetnames
   return(df)
 } 
-all_excel_fnames_c01_09 <- list.files(full.names = T, recursive = T) %>% grep("raw", ., value = T, invert = T)
+all_excel_fnames_c01_09 <- list.files(path = "~/Dropbox (Palmer Lab)/Peter_Kalivas_U01/addiction_related_behaviors/Raw_data_files", full.names = T, recursive = T) %>% grep("raw", ., value = T, invert = T)
 all_excel_fnames_c01_09 <- all_excel_fnames_c01_09[all_excel_fnames_c01_09 != "./Cohort 7/Cohort07_DA045300_MUSC_UCSD.xlsx"]
 
 

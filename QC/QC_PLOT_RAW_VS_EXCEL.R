@@ -71,6 +71,9 @@ kalivas_lga_rawvsxl <- kalivas_lga_rawvsxl %>%
   mutate(QC_diff = xl - raw,
          QC = ifelse(QC_diff == 0&!is.na(QC_diff), "pass", "fail")) 
 
+# XX temp 
+# kalivas_lga_rawvsxl %>% subset(cohort %in% c("C02", "C08")) %>% ggplot(aes(x = raw, y = xl)) + geom_point() + facet_grid(~cohort)
+
 ## calculate the gwas traits
 kalivas_us_esc_gwas <- kalivas_lga_rawvsxl %>%
   mutate(infusions = ifelse(QC == "pass", raw, NA),
@@ -80,7 +83,7 @@ kalivas_us_esc_gwas <- kalivas_lga_rawvsxl %>%
   fill(lga_01_date) %>% 
   ungroup() %>% 
   group_by(internal_id, group) %>% 
-  mutate(mean_infusions = mean(infusions, na.rm = F)) %>% 
+  mutate(mean_infusions = mean(infusions, na.rm = T)) %>% 
   ungroup() %>% 
   subset(session %in% c("01", "10")) %>% 
   distinct(cohort, rfid, internal_id, lga_01_date, group, mean_infusions) %>% 
@@ -99,19 +102,26 @@ kalivas_lga_rawvsxl_2 <- kalivas_lga_excel_c01_09_df %>%
               add_count(internal_id, session) %>%
               subset(n == 1) %>% 
               select(internal_id, session, infusions), by = c("internal_id", "session")) %>% 
-  rename("raw" = "infusions.x",
-         "xl" = "infusions.y") %>% 
-  mutate(raw = as.numeric(raw)) 
+  rename("raw" = "infusions.y",
+         "xl" = "infusions.x") %>% 
+  mutate(raw = as.numeric(raw),
+         xl = as.numeric(xl)) 
 
 kalivas_lga_rawvsxl_2 <- kalivas_lga_rawvsxl_2 %>% 
   mutate(QC_diff = xl - raw,
          QC = ifelse(QC_diff == 0&!is.na(QC_diff), "pass", "fail")) 
 
+# XX temp 
+kalivas_lga_rawvsxl_2 %>% subset(cohort %in% c("C02", "C08")) %>% ggplot(aes(x = raw, y = xl)) + geom_point() + facet_grid(~cohort)
+
+
 ## calculate the gwas traits
 kalivas_us_consu_gwas <- kalivas_lga_rawvsxl_2 %>%
-  mutate(infusions = ifelse(QC == "pass", raw, NA)) %>%
+  mutate(infusions = ifelse(QC == "pass"&!(cohort %in% c("C02", "C08")), raw, 
+                            ifelse(QC=="fail"&cohort%in% c("C02", "C08"), coalesce(raw,xl), 
+                                   ifelse(QC == "pass"&(cohort %in% c("C02", "C08")), raw, NA)))) %>%
   group_by(internal_id) %>% 
-  mutate(lga_total_consumption = sum(infusions, na.rm = F)) %>% 
+  mutate(lga_total_consumption = sum(infusions, na.rm = T)) %>% 
   ungroup() %>% 
   distinct(cohort, rfid, internal_id, lga_total_consumption) 
 
@@ -622,59 +632,15 @@ us_gwas_traits %>% get_dupes(labanimalid)
 us_gwas_traits %>% get_dupes(rfid)
 write.csv(us_gwas_traits, "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/us/generated/gwas_ustraits_n320_v2.csv", row.names = F)
 
+# redo with fixes to lga calculations
+read.csv( "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/us/generated/gwas_ustraits_n320_v2.csv", stringsAsFactors = F) %>% 
+  mutate(rfid = as.numeric(rfid) %>% as.character) %>%
+  select(-lga_total_consumption, -lga_escalation) %>% 
+  left_join(kalivas_us_consu_gwas, by = "rfid") %>%   
+  left_join(kalivas_us_esc_gwas, by = "rfid") %>% 
+  select(site, cohort, rfid, labanimalid, sex, saroom, sabox, coatcolor, prime_age, ext_age, lga_01_age, pr_age, cued_age, oft_age, epm_age, surgery_weight, ext_active_presses_day6, prime_active, lga_total_consumption, pr_breakpoint, lga_escalation, cued_active_presses, oft_distancetraveled_cm, oft_timetraveled_sec, oft_rears, epm_totaltimeopenarm_sec) %>% 
+  write.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/us/generated/gwas_ustraits_n320_v3.csv", row.names = F)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## combine to Beverly's to create full traits for Italy GWAS 
-italy_gwas_traits <- oft_c01_10 %>% mutate(internal_id = parse_number(internal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>% 
-  distinct(rfid, internal_id, total_cm_traveled, total_time_traveled_seconds, number_of_rears, date) %>% 
-  rename("date_oft" = "date") %>% 
-  left_join(read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/Italy_Gwas_Traits.csv", stringsAsFactors =  F) %>% 
-              mutate(rfid=as.numeric(rfid) %>% as.character) %>% 
-              naniar::replace_with_na_all(condition = ~.x %in% c("None")) %>% 
-              select_if(function(x) any(!is.na(x))), by = "internal_id") %>% # remove columns that have all na's
-  mutate(rfid = ifelse(rfid.x != rfid.y&!is.na(rfid.y), rfid.y, rfid.x)) %>% 
-  rename("labanimalid" = "internal_id") %>% 
-  left_join(kalivas_italy_prime_gwas %>% distinct(rfid, prime_active, prime_date, saroom, sabox), by = c("rfid")) %>% #left join when number of rfid's match
-  left_join(kalivas_italy_cued_gwas %>% distinct(rfid, cued_active_presses, cued_date), by = c("rfid")) %>% # full join when number of rfid's don't match
-  # join to the excel only data
-  left_join(openarm_epm_c01_10 %>%
-              mutate(rfid=as.numeric(rfid) %>% as.character) %>%
-              left_join(read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/Italy_Gwas_Traits.csv", stringsAsFactors =  F) %>% 
-                          mutate(rfid=as.numeric(rfid) %>% as.character) %>% 
-                          naniar::replace_with_na_all(condition = ~.x %in% c("None")) %>% 
-                          select_if(function(x) any(!is.na(x))), by = "internal_id") %>% # remove columns that have all na's
-              mutate(rfid = ifelse(rfid.x != rfid.y&!is.na(rfid.y), rfid.y, rfid.x)) %>% 
-              distinct(rfid, totaltimeopenarm_sec, date_openarm), by = c("rfid")) %>% 
-  rename("oft_distancetraveled_cm" = "total_cm_traveled",
-         "oft_timetraveled_sec" = "total_time_traveled_seconds",
-         "oft_rears" = "number_of_rears", 
-         "oft_date" = "date_oft", 
-         "epm_totaltimeopenarm_sec" = "totaltimeopenarm_sec",
-         "epm_date" = "date_openarm") %>% 
-  select(-sex, -dob, -rfid.x, -rfid.y, -cohort, -site, -coatcolor) %>% 
-  left_join(kalivas_metadata_db %>% 
-              select(rfid, cohort, sex, coatcolor, dob), by = "rfid") %>% 
-  mutate(site = "italy") %>%  
-  mutate_at(vars(matches("date")), ~difftime(., dob, units = c("days")) %>% as.numeric() %>% round) %>% # calculate the age at exp
-  setNames(gsub("date", "age", names(.))) %>% 
-  select(site, cohort, rfid, labanimalid, sex, saroom, sabox, coatcolor, prime_age, ext_age, lga_01_age, pr_age, cued_age, oft_age, epm_age, surgery_weight, ext_active_presses_day6, prime_active, lga_total_consumption, pr_breakpoint, lga_escalation, cued_active_presses, oft_distancetraveled_cm, oft_timetraveled_sec, oft_rears, epm_totaltimeopenarm_sec)
-
-italy_gwas_traits %>% naniar::vis_miss()
-italy_gwas_traits %>% get_dupes(labanimalid)
-write.csv(italy_gwas_traits, "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/gwas_italytraits_n400_v2.csv", row.names = F)
 
 
 

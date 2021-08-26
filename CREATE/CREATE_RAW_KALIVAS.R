@@ -251,7 +251,7 @@ lga_raw_c01_09_df %>% get_dupes(internal_id, day) %>% View()
 ## correct lab animal id's with excel
 lga_raw_c01_09_df_id <- lga_raw_c01_09_df %>% 
   mutate_at(vars(matches("room|box")), as.character) %>% 
-  full_join(kalivas_lga_allcohorts_excel_processed_c01_09_df %>% 
+  full_join(kalivas_lga_excel_c01_09_df %>% 
               mutate(self_administration_box = as.character(self_administration_box),
                      self_administration_box = ifelse(self_administration_room == "R"&grepl("\\d[.]1$", self_administration_box), gsub("([.])(1)$", "\\1\\20", self_administration_box), self_administration_box)) %>% 
               select(cohort, internal_id, session, self_administration_room, self_administration_box, matches("comments")), by = c("room" = "self_administration_room", "compbox" = "self_administration_box", "cohort", "day"="session")) %>% 
@@ -265,7 +265,7 @@ lga_raw_c01_09_df_id %>% get_dupes(internal_id.x, day) %>% View()
 # back to the df object
 lga_raw_c01_09_df <- lga_raw_c01_09_df_id %>% 
   rename(internal_id = "internal_id.x") %>% 
-  select(cohort, internal_id, inactive_lever, active_lever, room, compbox, startdate, filename, matches("comments"))
+  select(cohort, internal_id, day, inactive_lever, active_lever, infusions, room, compbox, startdate, filename, matches("comments"))
 
 
 

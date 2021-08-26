@@ -779,12 +779,13 @@ kalivas_italy_cued_excel_c01_10_df <- kalivas_italy_extinction_excel_c01_10_df %
   mutate(heroin_salineyoked = ifelse(grepl("yoke", heroin_salineyoked, ignore.case = T), "YOKED", toupper(heroin_salineyoked)))
 
 
-kalivas_italy_cued_excel_c01_10_df <- kalivas_italy_cued_excel_c01_10_df %>% 
-  select(-rfid, -sex) %>% 
-  left_join(kalivas_italy_excel_metadata_c01_10_df  %>% 
-              mutate(animal_id = parse_number(animal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
-              select(animal_id, rfid, sex), by = c("internal_id" = "animal_id")) %>% 
-  subset(!cohort %in% c("C01", "C02"))
+kalivas_italy_cued_excel_c01_10_df <- kalivas_italy_cued_excel_c01_10_df %>%
+  select(-rfid, -sex) %>%
+  left_join(kalivas_italy_excel_metadata_c01_10_df  %>%
+              mutate(animal_id = parse_number(animal_id) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id
+              select(animal_id, rfid, sex), by = c("internal_id" = "animal_id")) 
+# %>%
+#   subset(!cohort %in% c("C01", "C02"))
 
 kalivas_italy_cued_excel_c01_10_df <- kalivas_italy_cued_excel_c01_10_df %>% 
   mutate(saroom = as.numeric(saroom) %>% as.character) %>% 
@@ -828,14 +829,18 @@ kalivas_italy_priming_excel_c01_10_df %>% full_join(kalivas_italy_metadata_c01_1
 kalivas_italy_priming_excel_c01_10_df %>% full_join(kalivas_italy_metadata_c01_10_df, by = "rfid") %>% subset(internal_id != animal_id|cohort.x!=cohort.y|sex.x!=sex.y) %>% select(cohort.x, cohort.y, rfid, sex.x, sex.y, internal_id, animal_id) %>% View()
 kalivas_italy_priming_excel_c01_10_df %>% full_join(kalivas_italy_metadata_c01_10_df, by = "rfid") %>% subset(internal_id!=animal_id&!cohort.x %in% c("C06", "C08")&!cohort.y %in% c("C06", "C08")) %>% select(cohort.x, cohort.y, rfid, sex.x, sex.y, internal_id, animal_id) %>% distinct %>% View()
 
-kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %>% 
-  select(-rfid, -sex) %>% 
-  left_join(kalivas_metadata_db %>% 
-              mutate(labanimalid = parse_number(labanimalid) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
-              select(labanimalid, rfid, sex), by = c("internal_id" = "labanimalid")) %>% 
-  subset(internal_id != "ITNA") %>% 
-  subset(!cohort %in% c("C01", "C02")) 
+# kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %>% 
+#   select(-rfid, -sex) %>% 
+#   left_join(kalivas_metadata_db %>% 
+#               mutate(labanimalid = parse_number(labanimalid) %>% str_pad(3, "left", "0") %>% paste0("IT", .)) %>%  # reformat the lab animal id   
+#               select(labanimalid, rfid, sex), by = c("internal_id" = "labanimalid")) %>% 
+#   subset(internal_id != "ITNA") %>% 
+#   subset(!cohort %in% c("C01", "C02")) 
   
+# use another italy file instead
+kalivas_italy_priming_excel_c01_10_df <- kalivas_italy_priming_excel_c01_10_df %>%
+  subset(internal_id != "ITNA") # still needs to have the rfid's fixed
+
 
 
 ############################
@@ -1021,7 +1026,7 @@ oft_c01_10 %>% get_dupes(rfid)
 # Time point 1, total time open arm
 
 openarm_epm_c01_10 <- kalivas_italy_epm_excel_processed_c01_10_df %>% 
-  subset(session == "before_SA") %>% 
+  subset(grepl("before", session)) %>% 
   rename("internal_id" = "ratinternalid") %>% 
   rename("date_openarm" = "date") %>% 
   select(cohort, rfid, internal_id, totaltimeopenarm_sec, date_openarm)
