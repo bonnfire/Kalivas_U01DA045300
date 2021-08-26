@@ -62,16 +62,27 @@ load(paste0("residuals/heroin_traits.RData"))
 ```
 
 ******
-# **Phenotype information** 
+# **Section 1** 
+
+xx PI name 
+xx Project title
+xx Link to protocols
 
 <strong><em>PI</strong></em>: `r PI`  
 <strong><em>Domain</strong></em>: `r domain`  
 <strong><em>Sub-domain</strong></em>: `r sub_domain`  
 
+```{r}
+## table of n for each experiment
+# total and by sex
+# include n of genotyping log
+
+```
+
 
 
 ******
-# **Trait descriptions** 
+# **Section 2: Data dictionary** 
 
 ```{r trait descriptions, echo=FALSE,eval=TRUE,message=FALSE,include=T}
 
