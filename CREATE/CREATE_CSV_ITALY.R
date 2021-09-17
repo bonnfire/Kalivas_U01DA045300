@@ -15,3 +15,11 @@ write.csv(kalivas_italy_metadata_c01_10_df, file = "~/Desktop/Database/csv files
 
 # prelim gwas data
 write.csv(italy_gwas_traits, "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/italy/generated/gwas_italytraits_n400_v2.csv", row.names = F)
+
+## connect to database and write data into 
+# install.packages("RPostgres")
+# install.packages("DBI")
+library(DBI)
+
+table_ID <- Id(schema = "u01_peter_kalivas_italy", table = "gwas_phenotypes")
+dbWriteTable(conn = con, name = table_ID, value = read.csv("~/Desktop/Database/csv files/u01_peter_kalivas_italy/gwas_italytraits_n400_v3.csv", stringsAsFactors = F) %>% distinct, append = T)

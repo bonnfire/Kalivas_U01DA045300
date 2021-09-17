@@ -25,3 +25,11 @@ rbind(read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U
         mutate(rfid = as.numeric(rfid) %>% as.character)) %>% 
   write.csv(file = "~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/preliminary GWAS files/gwas_italyandustraits_n720_v3.csv", row.names = F)
   
+## connect to database and write data into 
+# install.packages("RPostgres")
+# install.packages("DBI")
+library(DBI)
+
+table_ID <- Id(schema = "u01_peter_kalivas_us", table = "gwas_phenotypes")
+dbWriteTable(conn = con, name = table_ID, value = read.csv("~/Dropbox (Palmer Lab)/Palmer Lab/Bonnie Lin/U01/Peter_Kalivas_U01DA045300/us/generated/gwas_ustraits_n320_v3.csv", stringsAsFactors = F) %>% distinct, append = T)
+
